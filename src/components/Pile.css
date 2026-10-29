@@ -1,0 +1,26 @@
+.pile {
+  position: relative;
+  display: inline-block;
+  min-width: calc(var(--card-width) + var(--card-stack-offset));
+  min-height: calc(var(--card-height) + var(--card-stack-offset));
+  padding: 8px;
+}
+
+.pile__card {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+}
+
+.pile__overflow {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  font-size: 0.75rem;
+}
