@@ -3,6 +3,7 @@ import type { CardData } from '../components/Card'
 import {
   gameReducer,
   initialState,
+  defaultSettings,
   cardPower,
   isValidTrigger,
   powerSum,
@@ -11,6 +12,7 @@ import {
   HAND_SIZE,
   MAX_DAMAGE,
   type GameState,
+  type GameSettings,
 } from './state'
 
 // --- Card factories ---------------------------------------------------------
@@ -106,6 +108,17 @@ describe('NEW_GAME', () => {
     expect(state.clearPile).toHaveLength(0)
     expect(state.selectedHandIndex).toBeNull()
     expect(state.score).toBeNull()
+  })
+
+  it('uses default settings and empty inventory when none supplied', () => {
+    expect(state.settings).toEqual(defaultSettings)
+    expect(state.inventory).toHaveLength(0)
+  })
+
+  it('stores custom settings passed at game start', () => {
+    const custom: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: true }
+    const s = gameReducer(initialState, { type: 'NEW_GAME', settings: custom })
+    expect(s.settings).toEqual(custom)
   })
 })
 

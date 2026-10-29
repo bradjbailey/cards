@@ -25,6 +25,18 @@ import { createFullDeck, shuffle, separateDecks } from './deck'
 
 export type GamePhase = 'idle' | 'playing' | 'won' | 'lost'
 
+export interface GameSettings {
+  boomersAce: boolean
+  powerReserve: boolean
+  kingAbilities: boolean
+}
+
+export const defaultSettings: GameSettings = {
+  boomersAce: false,
+  powerReserve: false,
+  kingAbilities: false,
+}
+
 /** Cards drawn into the hand each turn. */
 export const HAND_SIZE = 3
 /** Damage bar size that triggers a loss. */
@@ -65,6 +77,10 @@ export interface GameState {
   message: string | null
   /** Final score (power cards remaining) once the game is won. */
   score: number | null
+  /** Active rule variants for this game. */
+  settings: GameSettings
+  /** Defeated Kings held as one-shot power inventory (King abilities variant). */
+  inventory: CardData[]
 }
 
 export const initialState: GameState = {
@@ -79,10 +95,12 @@ export const initialState: GameState = {
   clearPile: [],
   message: null,
   score: null,
+  settings: defaultSettings,
+  inventory: [],
 }
 
 export type GameAction =
-  | { type: 'NEW_GAME' }
+  | { type: 'NEW_GAME'; settings?: GameSettings }
   | { type: 'BACK_TO_MENU' }
   | { type: 'SELECT_HAND'; index: number }
   | { type: 'PLACE_CARD'; columnIndex: number }
@@ -208,6 +226,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return initialState
 
     case 'NEW_GAME': {
+      const settings = action.settings ?? defaultSettings
       const { monsters, power } = separateDecks(createFullDeck())
       const dungeonColumns = dealDungeon(shuffle(monsters))
       const shuffledPower = shuffle(power)
@@ -225,6 +244,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         clearPile: [],
         message: null,
         score: null,
+        settings,
+        inventory: [],
       }
     }
 
