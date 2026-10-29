@@ -1,28 +1,36 @@
+import type { Dispatch } from 'react'
 import Card, { type CardData } from './Card'
+import type { GameAction } from '../game/state'
 
-interface handProps {
+interface HandProps {
   cards: CardData[]
   center: { x: number; y: number }
   offset: number
-  focus: boolean
+  selectedHandIndex?: number | null
+  dispatch?: Dispatch<GameAction>
+  /** @deprecated no longer used */ focus?: boolean
 }
 
-export function Hand({ cards, center, offset, focus }: handProps) {
+export function Hand({ cards, center, offset, selectedHandIndex = null, dispatch }: HandProps) {
   return (
     <div style={{ position: 'relative', width: '100%', height: '220px' }}>
       {cards.map((card, index) => {
+        const isSelected = index === selectedHandIndex
         const style = {
           position: 'absolute' as const,
           left: `calc(50% + ${center.x + index * offset}px)`,
           top: `calc(50% + ${center.y}px)`,
-          transform: 'translate(-50%, -50%)',
-          opacity: focus ? 1 : 0.95,
-          filter: focus ? 'drop-shadow(0 0 6px rgba(255, 215, 0, 0.6))' : undefined,
+          transform: `translate(-50%, -50%)`,
+          zIndex: isSelected ? 10 : index,
         }
 
         return (
           <div key={`${card.front.rank}-${card.front.suit}-${index}`} style={style}>
-            <Card {...card} />
+            <Card
+              {...card}
+              selected={isSelected}
+              onClick={dispatch ? () => dispatch({ type: 'SELECT_HAND', index }) : undefined}
+            />
           </div>
         )
       })}

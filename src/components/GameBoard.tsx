@@ -18,21 +18,43 @@ export function GameBoard() {
     )
   }
 
+  const gameOver = state.phase === 'won' || state.phase === 'lost'
+
   return (
     <div className="game-board">
-      <section className="game-board__dungeon">
-        <h2>Dungeon</h2>
-        <Dungeon columns={state.dungeonColumns} />
-      </section>
-
-      <section className="game-board__player">
-        <h2>Player</h2>
-        <PlayerArea
-          powerDeck={state.powerDeck}
-          hand={state.hand}
-          damagePile={state.damagePile}
-        />
-      </section>
+      <Dungeon state={state} dispatch={dispatch} />
+      <PlayerArea state={state} dispatch={dispatch} />
+      <div className="game-board__controls">
+        <button
+          className="game-board__end-turn"
+          onClick={() => dispatch({ type: 'END_TURN' })}
+          disabled={gameOver}
+        >
+          End Turn (Discard &amp; Draw)
+        </button>
+        {state.message && !gameOver && (
+          <p className="game-board__message">{state.message}</p>
+        )}
+      </div>
+      {gameOver && (
+        <div className="game-board__overlay">
+          <div className="game-board__overlay-box">
+            <h2 className={state.phase === 'won' ? 'game-board__overlay-title--won' : 'game-board__overlay-title--lost'}>
+              {state.phase === 'won' ? 'Victory!' : 'Defeated!'}
+            </h2>
+            {state.message && <p className="game-board__overlay-message">{state.message}</p>}
+            {state.phase === 'won' && state.score !== null && (
+              <p className="game-board__overlay-score">Score: {state.score}</p>
+            )}
+            <button
+              className="game-board__start"
+              onClick={() => dispatch({ type: 'NEW_GAME' })}
+            >
+              Play Again
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

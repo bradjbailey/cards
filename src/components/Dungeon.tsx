@@ -1,16 +1,18 @@
-import type { CardData } from './Card'
+import type { Dispatch } from 'react'
 import { DungeonColumn } from './DungeonColumn'
+import type { GameAction, GameState } from '../game/state'
 import './Dungeon.css'
 
 interface DungeonProps {
-  columns: CardData[][]
+  state: GameState
+  dispatch: Dispatch<GameAction>
 }
 
-export function Dungeon({ columns }: DungeonProps) {
+export function Dungeon({ state, dispatch }: DungeonProps) {
   return (
     <div className="dungeon">
-      {columns.map((col, i) => (
-        <DungeonColumn key={i} cards={col} />
+      {state.dungeonColumns.map((_, i) => (
+        <DungeonColumn key={i} columnIndex={i} state={state} dispatch={dispatch} />
       ))}
     </div>
   )

@@ -21,7 +21,12 @@ export interface CardData {
   back: BackOfCard
 }
 
-export interface CardProps extends CardData {}
+export interface CardProps extends CardData {
+  onClick?: () => void
+  selected?: boolean
+  highlight?: boolean
+  dimmed?: boolean
+}
 
 const suitMap: Record<number, string> = {
   0: 'Clubs',
@@ -30,16 +35,44 @@ const suitMap: Record<number, string> = {
   3: 'Spades',
 }
 
-export function Card({ faceUp, front, back }: CardProps) {
+const rankMap: Record<number, string> = {
+  0: 'Joker', 1: 'Ace', 2: '2', 3: '3', 4: '4', 5: '5',
+  6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
+  11: 'Jack', 12: 'Queen', 13: 'King',
+}
+
+export function Card({ faceUp, front, back, onClick, selected, highlight, dimmed }: CardProps) {
   const frontImage = getCardFrontImagePath(front.rank, front.suit, front.joker)
   const backImage = getCardBackImagePath(back.color, back.version)
 
+  const altText = front.joker
+    ? 'Joker'
+    : faceUp
+    ? `${rankMap[front.rank] ?? front.rank} of ${suitMap[front.suit] ?? front.suit}`
+    : 'Card back'
+
+  const classes = [
+    'card',
+    onClick ? 'card--clickable' : '',
+    selected ? 'card--selected' : '',
+    highlight ? 'card--highlight' : '',
+    dimmed ? 'card--dimmed' : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className="card">
+    <div
+      className={classes}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() }
+      } : undefined}
+    >
       {faceUp ? (
-        <img src={frontImage} alt={`${front.rank} of ${front.suit}`} />
+        <img src={frontImage} alt={altText} />
       ) : (
-        <img src={backImage} alt="Card back" />
+        <img src={backImage} alt={altText} />
       )}
     </div>
   )
