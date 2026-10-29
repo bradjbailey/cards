@@ -25,7 +25,10 @@ export function DungeonColumn({ columnIndex, state, dispatch }: DungeonColumnPro
   const monster = activeMonster(cards)
 
   const selectedCard =
-    state.selectedHandIndex !== null ? state.hand[state.selectedHandIndex] : null
+    state.selectedHandIndex !== null ? state.hand[state.selectedHandIndex] :
+    state.selectedReserveIndex !== null ? state.reserve[state.selectedReserveIndex] : null
+
+  const pendingSpades = state.pendingKingAbility?.front.suit === 3
 
   const isLegal = selectedCard
     ? placementError(state, selectedCard, columnIndex) === null
@@ -78,7 +81,10 @@ export function DungeonColumn({ columnIndex, state, dispatch }: DungeonColumnPro
             <div key={slotIndex} className={`dungeon-column__attack-card${slotIndex < locked ? ' dungeon-column__attack-card--locked' : ''}`}>
               <Card
                 {...card}
-                onClick={() => dispatch({ type: 'RECALL_CARD', columnIndex, slotIndex })}
+                highlight={pendingSpades ? true : undefined}
+                onClick={pendingSpades
+                  ? () => dispatch({ type: 'USE_KING_SPADES', columnIndex, slotIndex })
+                  : () => dispatch({ type: 'RECALL_CARD', columnIndex, slotIndex })}
               />
             </div>
           ))}

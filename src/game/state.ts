@@ -85,6 +85,8 @@ export interface GameState {
   settings: GameSettings
   /** Defeated Kings held as one-shot power inventory (King abilities variant). */
   inventory: CardData[]
+  /** King currently being activated (awaiting target selection for K♥ and K♠). */
+  pendingKingAbility: CardData | null
 }
 
 export const initialState: GameState = {
@@ -103,6 +105,7 @@ export const initialState: GameState = {
   score: null,
   settings: defaultSettings,
   inventory: [],
+  pendingKingAbility: null,
 }
 
 export type GameAction =
@@ -113,6 +116,10 @@ export type GameAction =
   | { type: 'PLACE_CARD'; columnIndex: number }
   | { type: 'RECALL_CARD'; columnIndex: number; slotIndex: number }
   | { type: 'END_TURN' }
+  | { type: 'ACTIVATE_KING'; kingCard: CardData }
+  | { type: 'CANCEL_KING_ABILITY' }
+  | { type: 'USE_KING_HEARTS'; handIndex: number }
+  | { type: 'USE_KING_SPADES'; columnIndex: number; slotIndex: number }
 
 // --- Pure helpers (exported for the UI and tests) ---------------------------
 
@@ -133,11 +140,11 @@ export function suitName(suit: number): string {
   return SUIT_NAMES[suit] ?? String(suit)
 }
 
-/** Attack value of a power card. With boomersAce, Aces are worth 11 instead of 1. */
+/** Attack value of a power card. Doubles when boosted (K♠ ability); Aces worth 11 with boomersAce. */
 export function cardPower(card: CardData, settings: GameSettings = defaultSettings): number {
   if (card.front.joker) return 10
-  if (settings.boomersAce && card.front.rank === 1) return 11
-  return card.front.rank
+  const base = (settings.boomersAce && card.front.rank === 1) ? 11 : card.front.rank
+  return card.front.boosted ? base * 2 : base
 }
 
 /** A monster's power level equals its rank (Jack 11, Queen 12, King 13). */
@@ -274,6 +281,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         score: null,
         settings,
         inventory: [],
+        pendingKingAbility: null,
       }
     }
 
@@ -338,9 +346,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       // Trigger slot: the monster is defeated. Move it and its attack cards to
       // the clear pile, reveal the next monster, and check for a win.
       // Boomer-Ace: a non-Joker Ace used as trigger returns to hand instead.
+      // King abilities: a defeated King goes to inventory rather than clearPile.
       const aceReturns = state.settings.boomersAce && !card.front.joker && card.front.rank === 1
-      const defeatedCards = aceReturns ? [...attack, faceUp(monster)] : [...attack, card, faceUp(monster)]
+      const kingToInventory = state.settings.kingAbilities && monster.front.rank === 13
+      const triggerCards = aceReturns ? [] : [card]
+      const monsterCards = kingToInventory ? [] : [faceUp(monster)]
+      const defeatedCards = [...attack, ...triggerCards, ...monsterCards]
       const handAfterTrigger = aceReturns ? [...handAfter, card] : handAfter
+      const inventoryAfter = kingToInventory ? [...state.inventory, faceUp(monster)] : state.inventory
       const columnAfter = column.slice(0, -1)
       if (columnAfter.length > 0) {
         const top = columnAfter.length - 1
@@ -362,6 +375,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           selectedHandIndex: null,
           selectedReserveIndex: null,
           clearPile,
+          inventory: inventoryAfter,
+          pendingKingAbility: null,
           phase: 'won',
           score: state.powerDeck.length,
           message: `You cleared the dungeon! Score: ${state.powerDeck.length}.`,
@@ -386,6 +401,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             selectedHandIndex: null,
             selectedReserveIndex: null,
             clearPile,
+            inventory: inventoryAfter,
+            pendingKingAbility: null,
             phase: 'lost',
             message: 'Out of power cards. You lost.',
           }
@@ -401,6 +418,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           selectedHandIndex: null,
           selectedReserveIndex: null,
           clearPile,
+          inventory: inventoryAfter,
+          pendingKingAbility: null,
           phase: 'playing',
           score: null,
           message: `${monsterName(monster)} defeated!`,
@@ -417,6 +436,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         selectedHandIndex: null,
         selectedReserveIndex: null,
         clearPile,
+        inventory: inventoryAfter,
+        pendingKingAbility: null,
         phase: 'playing',
         score: null,
         message: `${monsterName(monster)} defeated!`,
@@ -431,7 +452,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (slotIndex < state.lockedCount[columnIndex]) {
         return { ...state, message: 'That card is locked in from a previous turn.' }
       }
-      const card = faceUp(attack[slotIndex])
+      const raw = faceUp(attack[slotIndex])
+      // Clear boost when a card is recalled — the boost applies to a placed card, not the card itself.
+      const card: CardData = raw.front.boosted
+        ? { ...raw, front: { ...raw.front, boosted: undefined } }
+        : raw
       return {
         ...state,
         attacks: replaceAt(state.attacks, columnIndex, removeAt(attack, slotIndex)),
@@ -489,6 +514,92 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         lockedCount,
         selectedHandIndex: null,
         selectedReserveIndex: null,
+        message: null,
+      }
+    }
+
+    case 'ACTIVATE_KING': {
+      if (state.phase !== 'playing') return state
+      const { kingCard } = action
+      const remainingInventory = state.inventory.filter(k => k !== kingCard)
+      const suit = kingCard.front.suit
+
+      // K♣ (Clubs, 0): draw the top card of the power deck into hand.
+      if (suit === 0) {
+        if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to draw.' }
+        return {
+          ...state,
+          hand: [...state.hand, faceUp(state.powerDeck[0])],
+          powerDeck: state.powerDeck.slice(1),
+          inventory: remainingInventory,
+          selectedHandIndex: null,
+          selectedReserveIndex: null,
+          pendingKingAbility: null,
+          message: null,
+        }
+      }
+
+      // K♦ (Diamonds, 1): draw the bottom card of the power deck into hand.
+      if (suit === 1) {
+        if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to draw.' }
+        const bottom = state.powerDeck[state.powerDeck.length - 1]
+        return {
+          ...state,
+          hand: [...state.hand, faceUp(bottom)],
+          powerDeck: state.powerDeck.slice(0, -1),
+          inventory: remainingInventory,
+          selectedHandIndex: null,
+          selectedReserveIndex: null,
+          pendingKingAbility: null,
+          message: null,
+        }
+      }
+
+      // K♥ (Hearts, 2) and K♠ (Spades, 3): set pending and wait for target selection.
+      return {
+        ...state,
+        pendingKingAbility: kingCard,
+        selectedHandIndex: null,
+        selectedReserveIndex: null,
+        message: suit === 2
+          ? 'Select a hand card to put on the bottom of the deck.'
+          : 'Select an attack card to double its power.',
+      }
+    }
+
+    case 'CANCEL_KING_ABILITY':
+      return { ...state, pendingKingAbility: null, message: null }
+
+    case 'USE_KING_HEARTS': {
+      if (state.phase !== 'playing' || !state.pendingKingAbility) return state
+      const { handIndex } = action
+      if (handIndex < 0 || handIndex >= state.hand.length) return state
+      const buried = faceUp(state.hand[handIndex])
+      const kingCard = state.pendingKingAbility
+      return {
+        ...state,
+        hand: removeAt(state.hand, handIndex),
+        powerDeck: [...state.powerDeck, buried],
+        inventory: state.inventory.filter(k => k !== kingCard),
+        pendingKingAbility: null,
+        selectedHandIndex: null,
+        message: null,
+      }
+    }
+
+    case 'USE_KING_SPADES': {
+      if (state.phase !== 'playing' || !state.pendingKingAbility) return state
+      const { columnIndex, slotIndex } = action
+      const attack = state.attacks[columnIndex]
+      if (!attack || slotIndex < 0 || slotIndex >= attack.length) return state
+      const target = attack[slotIndex]
+      const boosted: CardData = { ...target, front: { ...target.front, boosted: true } }
+      const kingCard = state.pendingKingAbility
+      return {
+        ...state,
+        attacks: replaceAt(state.attacks, columnIndex, replaceAt(attack, slotIndex, boosted)),
+        inventory: state.inventory.filter(k => k !== kingCard),
+        pendingKingAbility: null,
         message: null,
       }
     }

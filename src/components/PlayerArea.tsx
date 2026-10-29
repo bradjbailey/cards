@@ -11,7 +11,12 @@ interface PlayerAreaProps {
 }
 
 export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
-  const { powerDeck, hand, reserve, damagePile, clearPile, selectedHandIndex, selectedReserveIndex } = state
+  const { powerDeck, hand, reserve, damagePile, clearPile, selectedHandIndex, selectedReserveIndex, inventory, pendingKingAbility } = state
+
+  const pendingSuit = pendingKingAbility?.front.suit ?? null
+  const handClickHandler = pendingSuit === 2
+    ? (index: number) => dispatch({ type: 'USE_KING_HEARTS', handIndex: index })
+    : undefined
   const damageRatio = damagePile.length / MAX_DAMAGE
   const damageClass =
     damageRatio >= 6 / MAX_DAMAGE
@@ -33,8 +38,9 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
           cards={hand}
           center={{ x: 0, y: 0 }}
           offset={110}
-          selectedHandIndex={selectedHandIndex}
-          dispatch={dispatch}
+          selectedHandIndex={handClickHandler ? null : selectedHandIndex}
+          dispatch={handClickHandler ? undefined : dispatch}
+          onCardClick={handClickHandler}
         />
       </div>
 
@@ -58,6 +64,22 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
                 {...card}
                 selected={index === selectedReserveIndex}
                 onClick={() => dispatch({ type: 'SELECT_RESERVE', index })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {inventory.length > 0 && (
+        <div className="player-area__section">
+          <div className="player-area__label">King Powers</div>
+          <div className="player-area__reserve">
+            {inventory.map((king, index) => (
+              <Card
+                key={index}
+                {...king}
+                selected={pendingKingAbility === king}
+                onClick={() => dispatch({ type: 'ACTIVATE_KING', kingCard: king })}
               />
             ))}
           </div>

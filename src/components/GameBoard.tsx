@@ -28,6 +28,7 @@ export function GameBoard() {
 
   const gameOver = state.phase === 'won' || state.phase === 'lost'
   const endTurnBlocked = !gameOver && hasInsufficientAttack(state)
+  const pendingAbility = state.pendingKingAbility
 
   return (
     <div className="game-board">
@@ -37,16 +38,29 @@ export function GameBoard() {
         <button
           className="game-board__end-turn"
           onClick={() => dispatch({ type: 'END_TURN' })}
-          disabled={gameOver || endTurnBlocked}
+          disabled={gameOver || endTurnBlocked || !!pendingAbility}
         >
           End Turn (Discard &amp; Draw)
         </button>
-        {endTurnBlocked && (
+        {pendingAbility && (
+          <>
+            <p className="game-board__message game-board__message--ability">
+              {state.message}
+            </p>
+            <button
+              className="game-board__cancel-ability"
+              onClick={() => dispatch({ type: 'CANCEL_KING_ABILITY' })}
+            >
+              Cancel
+            </button>
+          </>
+        )}
+        {endTurnBlocked && !pendingAbility && (
           <p className="game-board__message game-board__message--blocked">
             Recall a power card — locking these would make that monster unbeatable.
           </p>
         )}
-        {state.message && !gameOver && !endTurnBlocked && (
+        {state.message && !gameOver && !endTurnBlocked && !pendingAbility && (
           <p className="game-board__message">{state.message}</p>
         )}
       </div>

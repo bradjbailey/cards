@@ -8,10 +8,11 @@ interface HandProps {
   offset: number
   selectedHandIndex?: number | null
   dispatch?: Dispatch<GameAction>
+  onCardClick?: (index: number) => void
   /** @deprecated no longer used */ focus?: boolean
 }
 
-export function Hand({ cards, center, offset, selectedHandIndex = null, dispatch }: HandProps) {
+export function Hand({ cards, center, offset, selectedHandIndex = null, dispatch, onCardClick }: HandProps) {
   return (
     <div style={{ position: 'relative', width: '100%', height: '220px' }}>
       {cards.map((card, index) => {
@@ -29,7 +30,9 @@ export function Hand({ cards, center, offset, selectedHandIndex = null, dispatch
             <Card
               {...card}
               selected={isSelected}
-              onClick={dispatch ? () => dispatch({ type: 'SELECT_HAND', index }) : undefined}
+              onClick={onCardClick
+                ? () => onCardClick(index)
+                : dispatch ? () => dispatch({ type: 'SELECT_HAND', index }) : undefined}
             />
           </div>
         )

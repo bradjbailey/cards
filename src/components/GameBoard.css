@@ -85,6 +85,29 @@
   color: #e07080;
 }
 
+.game-board__message--ability {
+  background: rgba(192, 96, 224, 0.12);
+  border-color: rgba(192, 96, 224, 0.4);
+  color: #d090f0;
+}
+
+.game-board__cancel-ability {
+  padding: 8px 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid #554466;
+  background: #1a1020;
+  color: #aa88cc;
+  letter-spacing: 0.03em;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.game-board__cancel-ability:hover {
+  background: #241530;
+  border-color: #8855aa;
+}
+
 /* Win / Loss overlay */
 .game-board__overlay {
   position: fixed;

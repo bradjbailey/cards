@@ -570,3 +570,147 @@ describe('Boomer-Ace', () => {
     expect(next.hand).not.toContainEqual(expect.objectContaining({ front: { joker: true } }))
   })
 })
+
+// --- King abilities variant -------------------------------------------------
+
+describe('King abilities', () => {
+  const kingsOn: GameSettings = { boomersAce: false, powerReserve: false, kingAbilities: true }
+
+  // Helper: a state with a King as the active monster, 2 power cards placed,
+  // and a matching trigger card selected so PLACE_CARD will defeat the King.
+  function kingSetup() {
+    const king = monster(13, 0) // King of Clubs
+    const trigger = power(5, 0) // Clubs trigger
+    return playing({
+      settings: kingsOn,
+      dungeonColumns: [[king], [monster(11, 1)], [], []],
+      attacks: [[power(7), power(7)], [], [], []],
+      hand: [trigger],
+      selectedHandIndex: 0,
+    })
+  }
+
+  it('cardPower doubles when card is boosted', () => {
+    const boosted = { faceUp: true, front: { rank: 5, suit: 0, boosted: true as const }, back: { color: 'Blue' as const, version: 1 as const } }
+    expect(cardPower(boosted)).toBe(10)
+    expect(cardPower(boosted, kingsOn)).toBe(10)
+    const plain = power(5)
+    expect(cardPower(plain)).toBe(5)
+  })
+
+  it('defeated King goes to inventory with kingAbilities on', () => {
+    const s = kingSetup()
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.inventory).toHaveLength(1)
+    expect(next.inventory[0].front.rank).toBe(13)
+    expect(next.clearPile.every(c => c.front.rank !== 13)).toBe(true)
+  })
+
+  it('defeated King goes to clearPile with kingAbilities off', () => {
+    const s = { ...kingSetup(), settings: { ...kingsOn, kingAbilities: false } }
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.inventory).toHaveLength(0)
+    expect(next.clearPile.some(c => c.front.rank === 13)).toBe(true)
+  })
+
+  it('ACTIVATE_KING K♣ draws a card from the top of the deck', () => {
+    const topCard = power(9)
+    const king = { ...monster(13, 0), faceUp: true }
+    const s = playing({
+      settings: kingsOn,
+      inventory: [king],
+      hand: [power(2)],
+      powerDeck: [topCard, power(3)],
+    })
+    const next = gameReducer(s, { type: 'ACTIVATE_KING', kingCard: king })
+    expect(next.hand).toHaveLength(2)
+    expect(next.hand[1].front.rank).toBe(9)
+    expect(next.inventory).toHaveLength(0)
+    expect(next.powerDeck).toHaveLength(1)
+  })
+
+  it('ACTIVATE_KING K♦ draws the bottom card of the deck', () => {
+    const bottomCard = power(9)
+    const king = { ...monster(13, 1), faceUp: true }
+    const s = playing({
+      settings: kingsOn,
+      inventory: [king],
+      hand: [power(2)],
+      powerDeck: [power(3), power(4), bottomCard],
+    })
+    const next = gameReducer(s, { type: 'ACTIVATE_KING', kingCard: king })
+    expect(next.hand).toHaveLength(2)
+    expect(next.hand[1].front.rank).toBe(9)
+    expect(next.powerDeck).toHaveLength(2)
+    expect(next.inventory).toHaveLength(0)
+  })
+
+  it('ACTIVATE_KING K♥ sets pendingKingAbility', () => {
+    const king = { ...monster(13, 2), faceUp: true }
+    const s = playing({ settings: kingsOn, inventory: [king], hand: [power(3)] })
+    const next = gameReducer(s, { type: 'ACTIVATE_KING', kingCard: king })
+    expect(next.pendingKingAbility).toEqual(king)
+    expect(next.inventory).toHaveLength(1) // not consumed yet
+  })
+
+  it('ACTIVATE_KING K♠ sets pendingKingAbility', () => {
+    const king = { ...monster(13, 3), faceUp: true }
+    const s = playing({ settings: kingsOn, inventory: [king] })
+    const next = gameReducer(s, { type: 'ACTIVATE_KING', kingCard: king })
+    expect(next.pendingKingAbility).toEqual(king)
+  })
+
+  it('USE_KING_HEARTS buries a hand card on the bottom of the deck', () => {
+    const king = { ...monster(13, 2), faceUp: true }
+    const buried = power(7)
+    const s = playing({
+      settings: kingsOn,
+      inventory: [king],
+      pendingKingAbility: king,
+      hand: [power(2), buried, power(5)],
+      powerDeck: [power(3), power(4)],
+    })
+    const next = gameReducer(s, { type: 'USE_KING_HEARTS', handIndex: 1 })
+    expect(next.hand).toHaveLength(2)
+    expect(next.hand.some(c => c.front.rank === 7)).toBe(false)
+    expect(next.powerDeck[next.powerDeck.length - 1].front.rank).toBe(7)
+    expect(next.inventory).toHaveLength(0)
+    expect(next.pendingKingAbility).toBeNull()
+  })
+
+  it('USE_KING_SPADES doubles the power of an attack card', () => {
+    const king = { ...monster(13, 3), faceUp: true }
+    const weakCard = power(3)
+    const s = playing({
+      settings: kingsOn,
+      inventory: [king],
+      pendingKingAbility: king,
+      dungeonColumns: [[monster(11, 0)], [], [], []],
+      attacks: [[weakCard, power(4)], [], [], []],
+    })
+    const next = gameReducer(s, { type: 'USE_KING_SPADES', columnIndex: 0, slotIndex: 0 })
+    expect(next.attacks[0][0].front.boosted).toBe(true)
+    expect(cardPower(next.attacks[0][0])).toBe(6)
+    expect(next.inventory).toHaveLength(0)
+    expect(next.pendingKingAbility).toBeNull()
+  })
+
+  it('RECALL_CARD removes the boost from a boosted card', () => {
+    const boostedCard = { faceUp: true, front: { rank: 3, suit: 0, boosted: true as const }, back: { color: 'Blue' as const, version: 1 as const } }
+    const s = playing({
+      dungeonColumns: [[monster(11, 0)], [], [], []],
+      attacks: [[boostedCard], [], [], []],
+      lockedCount: [0, 0, 0, 0],
+      hand: [],
+    })
+    const next = gameReducer(s, { type: 'RECALL_CARD', columnIndex: 0, slotIndex: 0 })
+    expect(next.hand[0].front.boosted).toBeUndefined()
+  })
+
+  it('CANCEL_KING_ABILITY clears pendingKingAbility', () => {
+    const king = { ...monster(13, 3), faceUp: true }
+    const s = playing({ settings: kingsOn, pendingKingAbility: king })
+    const next = gameReducer(s, { type: 'CANCEL_KING_ABILITY' })
+    expect(next.pendingKingAbility).toBeNull()
+  })
+})

@@ -5,6 +5,7 @@ export interface FrontOfCard {
   rank: number
   suit: number
   joker?: true
+  boosted?: true
 }
 
 export type BackCardColor = 'Blue' | 'Grey' | 'Red'
@@ -57,6 +58,7 @@ export function Card({ faceUp, front, back, onClick, selected, highlight, dimmed
     selected ? 'card--selected' : '',
     highlight ? 'card--highlight' : '',
     dimmed ? 'card--dimmed' : '',
+    front.boosted ? 'card--boosted' : '',
   ].filter(Boolean).join(' ')
 
   return (

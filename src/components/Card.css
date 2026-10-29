@@ -44,3 +44,7 @@
 .card--dimmed {
   opacity: 0.35;
 }
+
+.card--boosted {
+  box-shadow: 0 0 0 3px #c060e0, 0 0 16px rgba(192, 96, 224, 0.5);
+}
