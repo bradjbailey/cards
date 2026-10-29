@@ -29,6 +29,91 @@
   text-shadow: 0 2px 12px rgba(232, 216, 122, 0.35);
 }
 
+/* ── Settings toggles ──────────────────────────────────────── */
+
+.new-game-modal__settings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+}
+
+.new-game-modal__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.new-game-modal__toggle-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.new-game-modal__toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.new-game-modal__toggle-label {
+  font-size: 0.95rem;
+  color: #d8d0c0;
+  font-weight: 500;
+}
+
+.new-game-modal__toggle-desc {
+  font-size: 0.75rem;
+  color: #6868a0;
+  line-height: 1.3;
+}
+
+/* Pill toggle */
+.new-game-modal__toggle {
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: #2a2a3e;
+  border: 1px solid #3a3a50;
+  position: relative;
+  transition: background 0.18s, border-color 0.18s;
+  cursor: pointer;
+  outline-offset: 3px;
+}
+
+.new-game-modal__toggle:focus-visible {
+  outline: 2px solid #c8a830;
+}
+
+.new-game-modal__toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #5a5a80;
+  transition: transform 0.18s, background 0.18s;
+}
+
+.new-game-modal__toggle--on {
+  background: #3a2e08;
+  border-color: #c8a830;
+}
+
+.new-game-modal__toggle--on::after {
+  transform: translateX(18px);
+  background: #e8d87a;
+}
+
+/* ── Action buttons ────────────────────────────────────────── */
+
 .new-game-modal__actions {
   display: flex;
   gap: 16px;

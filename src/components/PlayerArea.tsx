@@ -1,6 +1,7 @@
 import type { Dispatch } from 'react'
 import { Pile } from './Pile'
 import { Hand } from './Hand'
+import Card from './Card'
 import { MAX_DAMAGE, type GameAction, type GameState } from '../game/state'
 import './PlayerArea.css'
 
@@ -10,7 +11,7 @@ interface PlayerAreaProps {
 }
 
 export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
-  const { powerDeck, hand, damagePile, clearPile, selectedHandIndex } = state
+  const { powerDeck, hand, reserve, damagePile, clearPile, selectedHandIndex, selectedReserveIndex } = state
   const damageRatio = damagePile.length / MAX_DAMAGE
   const damageClass =
     damageRatio >= 6 / MAX_DAMAGE
@@ -46,6 +47,22 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
           appearance={{ offset: 18, direction: 'right', maxVisible: MAX_DAMAGE }}
         />
       </div>
+
+      {reserve.length > 0 && (
+        <div className="player-area__section">
+          <div className="player-area__label">Reserve</div>
+          <div className="player-area__reserve">
+            {reserve.map((card, index) => (
+              <Card
+                key={index}
+                {...card}
+                selected={index === selectedReserveIndex}
+                onClick={() => dispatch({ type: 'SELECT_RESERVE', index })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="player-area__section">
         <div className="player-area__label">Cleared ({clearPile.length})</div>

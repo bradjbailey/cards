@@ -79,6 +79,12 @@
   font-size: 0.9rem;
 }
 
+.game-board__message--blocked {
+  background: rgba(207, 80, 96, 0.12);
+  border-color: rgba(207, 80, 96, 0.4);
+  color: #e07080;
+}
+
 /* Win / Loss overlay */
 .game-board__overlay {
   position: fixed;

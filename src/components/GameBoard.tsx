@@ -1,5 +1,5 @@
 import { useReducer, useState } from 'react'
-import { gameReducer, initialState } from '../game/state'
+import { gameReducer, initialState, hasInsufficientAttack } from '../game/state'
 import { Dungeon } from './Dungeon'
 import { PlayerArea } from './PlayerArea'
 import { NewGameModal } from './NewGameModal'
@@ -18,7 +18,7 @@ export function GameBoard() {
         </button>
         {showModal && (
           <NewGameModal
-            onStart={() => { dispatch({ type: 'NEW_GAME' }); setShowModal(false) }}
+            onStart={(settings) => { dispatch({ type: 'NEW_GAME', settings }); setShowModal(false) }}
             onCancel={() => setShowModal(false)}
           />
         )}
@@ -27,6 +27,7 @@ export function GameBoard() {
   }
 
   const gameOver = state.phase === 'won' || state.phase === 'lost'
+  const endTurnBlocked = !gameOver && hasInsufficientAttack(state)
 
   return (
     <div className="game-board">
@@ -36,11 +37,16 @@ export function GameBoard() {
         <button
           className="game-board__end-turn"
           onClick={() => dispatch({ type: 'END_TURN' })}
-          disabled={gameOver}
+          disabled={gameOver || endTurnBlocked}
         >
           End Turn (Discard &amp; Draw)
         </button>
-        {state.message && !gameOver && (
+        {endTurnBlocked && (
+          <p className="game-board__message game-board__message--blocked">
+            Recall a power card — locking these would make that monster unbeatable.
+          </p>
+        )}
+        {state.message && !gameOver && !endTurnBlocked && (
           <p className="game-board__message">{state.message}</p>
         )}
       </div>

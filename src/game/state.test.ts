@@ -9,6 +9,7 @@ import {
   powerSum,
   placementError,
   monsterName,
+  hasInsufficientAttack,
   HAND_SIZE,
   MAX_DAMAGE,
   type GameState,
@@ -404,5 +405,168 @@ describe('placementError', () => {
   it('names monsters for display', () => {
     expect(monsterName(monster(11, 2))).toBe('Jack of Hearts')
     expect(monsterName(monster(13, 3))).toBe('King of Spades')
+  })
+})
+
+// --- hasInsufficientAttack --------------------------------------------------
+
+describe('hasInsufficientAttack', () => {
+  it('returns false when no attacks are placed', () => {
+    const s = playing({ dungeonColumns: [[monster(11, 0)], [], [], []] })
+    expect(hasInsufficientAttack(s)).toBe(false)
+  })
+
+  it('returns false with one power card placed (slot still open)', () => {
+    const s = playing({
+      dungeonColumns: [[monster(13, 0)], [], [], []],
+      attacks: [[power(2)], [], [], []],
+    })
+    expect(hasInsufficientAttack(s)).toBe(false)
+  })
+
+  it('returns false when two power cards sum to >= monster level', () => {
+    const s = playing({
+      dungeonColumns: [[monster(11, 0)], [], [], []],
+      attacks: [[power(6), power(6)], [], [], []],
+    })
+    expect(hasInsufficientAttack(s)).toBe(false)
+  })
+
+  it('returns true when two power cards sum to < monster level', () => {
+    const s = playing({
+      dungeonColumns: [[monster(13, 0)], [], [], []],
+      attacks: [[power(3), power(4)], [], [], []], // 7 < 13
+    })
+    expect(hasInsufficientAttack(s)).toBe(true)
+  })
+
+  it('returns true even if only one column is deadlocked', () => {
+    const s = playing({
+      dungeonColumns: [[monster(11, 0)], [monster(13, 1)], [], []],
+      attacks: [[power(6), power(6)], [power(2), power(3)], [], []], // col 1 ok, col 2 deadlocked
+    })
+    expect(hasInsufficientAttack(s)).toBe(true)
+  })
+
+  it('accounts for boomers-ace power values', () => {
+    const boomers = { boomersAce: true, powerReserve: false, kingAbilities: false }
+    // Ace worth 11 with boomers: 1 + 11 = 12, enough for a Jack (11)
+    const s = playing({
+      settings: boomers,
+      dungeonColumns: [[monster(11, 0)], [], [], []],
+      attacks: [[power(1), power(1)], [], [], []], // 11+11=22 >= 11
+    })
+    expect(hasInsufficientAttack(s)).toBe(false)
+  })
+})
+
+// --- Power Reserve variant --------------------------------------------------
+
+describe('Power Reserve', () => {
+  const withReserve: GameSettings = { boomersAce: false, powerReserve: true, kingAbilities: false }
+
+  it('NEW_GAME deals 2 reserve cards and shrinks the power deck by 2', () => {
+    const s = gameReducer(initialState, { type: 'NEW_GAME', settings: withReserve })
+    expect(s.reserve).toHaveLength(2)
+    expect(s.reserve.every(c => c.faceUp)).toBe(true)
+    expect(s.powerDeck).toHaveLength(42 - HAND_SIZE - 2)
+  })
+
+  it('SELECT_RESERVE selects and deselects a reserve card', () => {
+    const s = playing({ settings: withReserve, reserve: [power(5), power(6)], selectedHandIndex: null })
+    const sel = gameReducer(s, { type: 'SELECT_RESERVE', index: 1 })
+    expect(sel.selectedReserveIndex).toBe(1)
+    expect(sel.selectedHandIndex).toBeNull()
+    const desel = gameReducer(sel, { type: 'SELECT_RESERVE', index: 1 })
+    expect(desel.selectedReserveIndex).toBeNull()
+  })
+
+  it('SELECT_RESERVE clears selectedHandIndex, SELECT_HAND clears selectedReserveIndex', () => {
+    const s = playing({
+      settings: withReserve,
+      hand: [power(3)],
+      reserve: [power(5)],
+      selectedHandIndex: 0,
+    })
+    const afterReserve = gameReducer(s, { type: 'SELECT_RESERVE', index: 0 })
+    expect(afterReserve.selectedHandIndex).toBeNull()
+    expect(afterReserve.selectedReserveIndex).toBe(0)
+
+    const afterHand = gameReducer(afterReserve, { type: 'SELECT_HAND', index: 0 })
+    expect(afterHand.selectedReserveIndex).toBeNull()
+    expect(afterHand.selectedHandIndex).toBe(0)
+  })
+
+  it('PLACE_CARD from reserve consumes the reserve card', () => {
+    const s = playing({
+      settings: withReserve,
+      dungeonColumns: [[monster(11, 0)], [], [], []],
+      attacks: [[], [], [], []],
+      hand: [power(3)],
+      reserve: [power(8), power(5)],
+      selectedReserveIndex: 0,
+    })
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.reserve).toHaveLength(1)
+    expect(next.attacks[0]).toHaveLength(1)
+    expect(next.hand).toHaveLength(1) // hand unchanged
+  })
+
+  it('END_TURN does not discard reserve cards', () => {
+    const s = playing({
+      settings: withReserve,
+      reserve: [power(7), power(8)],
+      hand: [power(2)],
+      powerDeck: [power(3), power(4), power(5)],
+    })
+    const next = gameReducer(s, { type: 'END_TURN' })
+    expect(next.reserve).toHaveLength(2)
+    expect(next.damagePile).toHaveLength(1) // only hand card discarded
+  })
+})
+
+// --- Boomer-Ace variant -----------------------------------------------------
+
+describe('Boomer-Ace', () => {
+  const boomers: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: false }
+
+  it('scores an Ace as 11 with boomersAce on, 1 without', () => {
+    const ace = power(1)
+    expect(cardPower(ace, { boomersAce: false, powerReserve: false, kingAbilities: false })).toBe(1)
+    expect(cardPower(ace, boomers)).toBe(11)
+  })
+
+  it('an Ace in a power slot contributes 11 to powerSum', () => {
+    const attack = [power(1), power(3)]
+    expect(powerSum(attack, boomers)).toBe(14)
+    expect(powerSum(attack)).toBe(4) // base game unchanged
+  })
+
+  it('allows an Ace to serve as a trigger and returns it to hand', () => {
+    const ace = power(1, 0) // Ace of Clubs
+    const s = playing({
+      settings: boomers,
+      dungeonColumns: [[monster(11, 0)], [monster(13, 1)], [], []],
+      attacks: [[power(6, 0), power(7, 1)], [], [], []],
+      hand: [ace],
+      selectedHandIndex: 0,
+    })
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.phase).toBe('playing')
+    expect(next.hand).toContainEqual(expect.objectContaining({ front: { rank: 1, suit: 0 } }))
+    expect(next.clearPile).not.toContainEqual(expect.objectContaining({ front: { rank: 1, suit: 0 } }))
+  })
+
+  it('does not return a Joker trigger to hand under boomersAce', () => {
+    const j = joker(0)
+    const s = playing({
+      settings: boomers,
+      dungeonColumns: [[monster(11, 0)], [monster(13, 1)], [], []],
+      attacks: [[power(6, 0), power(7, 1)], [], [], []],
+      hand: [j],
+      selectedHandIndex: 0,
+    })
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.hand).not.toContainEqual(expect.objectContaining({ front: { joker: true } }))
   })
 })

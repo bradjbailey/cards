@@ -87,7 +87,7 @@ export function DungeonColumn({ columnIndex, state, dispatch }: DungeonColumnPro
             <div className="dungeon-column__power-info">
               {attack.length < POWER_SLOTS
                 ? `Need ${POWER_SLOTS - attack.length} more power`
-                : `${suitName(monster.front.suit)} trigger (${powerSum(attack)}/${monsterLevel(monster)})`}
+                : `${suitName(monster.front.suit)} trigger (${powerSum(attack, state.settings)}/${monsterLevel(monster)})`}
             </div>
           )}
         </div>

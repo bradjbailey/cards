@@ -22,6 +22,12 @@
   min-width: 260px;
 }
 
+.player-area__reserve {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
 .player-area__label {
   font-size: 0.75rem;
   color: #7070a0;

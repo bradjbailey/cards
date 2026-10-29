@@ -69,6 +69,10 @@ export interface GameState {
   hand: CardData[]
   /** Index into `hand` of the currently selected card, or null. */
   selectedHandIndex: number | null
+  /** Always-available reserve cards (Power Reserve variant). Never discarded at end of turn. */
+  reserve: CardData[]
+  /** Index into `reserve` of the currently selected reserve card, or null. */
+  selectedReserveIndex: number | null
   /** Discarded cards. Reaching MAX_DAMAGE ends the game. */
   damagePile: CardData[]
   /** Defeated monsters plus the cards used to defeat them. */
@@ -91,6 +95,8 @@ export const initialState: GameState = {
   powerDeck: [],
   hand: [],
   selectedHandIndex: null,
+  reserve: [],
+  selectedReserveIndex: null,
   damagePile: [],
   clearPile: [],
   message: null,
@@ -103,6 +109,7 @@ export type GameAction =
   | { type: 'NEW_GAME'; settings?: GameSettings }
   | { type: 'BACK_TO_MENU' }
   | { type: 'SELECT_HAND'; index: number }
+  | { type: 'SELECT_RESERVE'; index: number }
   | { type: 'PLACE_CARD'; columnIndex: number }
   | { type: 'RECALL_CARD'; columnIndex: number; slotIndex: number }
   | { type: 'END_TURN' }
@@ -126,9 +133,11 @@ export function suitName(suit: number): string {
   return SUIT_NAMES[suit] ?? String(suit)
 }
 
-/** Attack value of a power card: Jokers are 10, everything else is its rank. */
-export function cardPower(card: CardData): number {
-  return card.front.joker ? 10 : card.front.rank
+/** Attack value of a power card. With boomersAce, Aces are worth 11 instead of 1. */
+export function cardPower(card: CardData, settings: GameSettings = defaultSettings): number {
+  if (card.front.joker) return 10
+  if (settings.boomersAce && card.front.rank === 1) return 11
+  return card.front.rank
 }
 
 /** A monster's power level equals its rank (Jack 11, Queen 12, King 13). */
@@ -142,8 +151,8 @@ export function isValidTrigger(card: CardData, monster: CardData): boolean {
 }
 
 /** Sum of the (up to two) power cards currently placed in an attack. */
-export function powerSum(attack: CardData[]): number {
-  return attack.slice(0, POWER_SLOTS).reduce((sum, c) => sum + cardPower(c), 0)
+export function powerSum(attack: CardData[], settings: GameSettings = defaultSettings): number {
+  return attack.slice(0, POWER_SLOTS).reduce((sum, c) => sum + cardPower(c, settings), 0)
 }
 
 /** The revealed monster for a column, or null if the column is cleared. */
@@ -170,7 +179,7 @@ export function placementError(
 
   // Trigger slot: power must be high enough and the suit must match.
   const level = monsterLevel(monster)
-  const sum = powerSum(attack)
+  const sum = powerSum(attack, state.settings)
   if (sum < level) {
     return `Power is ${sum}; needs ${level}+. Recall a power card and use a higher one.`
   }
@@ -187,6 +196,21 @@ export function monsterName(monster: CardData): string {
 
 export function isActiveTarget(state: GameState, columnIndex: number): boolean {
   return activeMonster(state.dungeonColumns[columnIndex]) !== null
+}
+
+/**
+ * Returns true if any column has POWER_SLOTS cards placed with insufficient
+ * power to ever trigger — ending the turn would lock those cards permanently,
+ * making the column unwinnable. Used to disable the End Turn button.
+ */
+export function hasInsufficientAttack(state: GameState): boolean {
+  return state.dungeonColumns.some((column, i) => {
+    const monster = activeMonster(column)
+    if (!monster) return false
+    const attack = state.attacks[i]
+    if (attack.length < POWER_SLOTS) return false
+    return powerSum(attack, state.settings) < monsterLevel(monster)
+  })
 }
 
 // --- Internal immutable array utilities -------------------------------------
@@ -231,7 +255,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const dungeonColumns = dealDungeon(shuffle(monsters))
       const shuffledPower = shuffle(power)
       const hand = shuffledPower.slice(0, HAND_SIZE).map(faceUp)
-      const powerDeck = shuffledPower.slice(HAND_SIZE)
+      const reserveSize = settings.powerReserve ? 2 : 0
+      const reserve = shuffledPower.slice(HAND_SIZE, HAND_SIZE + reserveSize).map(faceUp)
+      const powerDeck = shuffledPower.slice(HAND_SIZE + reserveSize)
       return {
         phase: 'playing',
         dungeonColumns,
@@ -240,6 +266,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         powerDeck,
         hand,
         selectedHandIndex: null,
+        reserve,
+        selectedReserveIndex: null,
         damagePile: [],
         clearPile: [],
         message: null,
@@ -254,12 +282,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (action.index < 0 || action.index >= state.hand.length) return state
       const selectedHandIndex =
         state.selectedHandIndex === action.index ? null : action.index
-      return { ...state, selectedHandIndex, message: null }
+      return { ...state, selectedHandIndex, selectedReserveIndex: null, message: null }
+    }
+
+    case 'SELECT_RESERVE': {
+      if (state.phase !== 'playing') return state
+      if (action.index < 0 || action.index >= state.reserve.length) return state
+      const selectedReserveIndex =
+        state.selectedReserveIndex === action.index ? null : action.index
+      return { ...state, selectedReserveIndex, selectedHandIndex: null, message: null }
     }
 
     case 'PLACE_CARD': {
       if (state.phase !== 'playing') return state
-      if (state.selectedHandIndex === null) {
+      if (state.selectedHandIndex === null && state.selectedReserveIndex === null) {
         return { ...state, message: 'Select a card from your hand first.' }
       }
 
@@ -268,12 +304,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const monster = column ? activeMonster(column) : null
       if (!monster) return { ...state, message: 'No monster to attack there.' }
 
-      const card = faceUp(state.hand[state.selectedHandIndex])
+      // Determine card source: hand or reserve.
+      let card: CardData
+      let handAfter: CardData[]
+      let reserveAfter: CardData[]
+      if (state.selectedHandIndex !== null) {
+        card = faceUp(state.hand[state.selectedHandIndex])
+        handAfter = removeAt(state.hand, state.selectedHandIndex)
+        reserveAfter = state.reserve
+      } else {
+        card = faceUp(state.reserve[state.selectedReserveIndex!])
+        handAfter = state.hand
+        reserveAfter = removeAt(state.reserve, state.selectedReserveIndex!)
+      }
+
       const attack = state.attacks[columnIndex]
       const error = placementError(state, card, columnIndex)
       if (error) return { ...state, message: error }
-
-      const handAfter = removeAt(state.hand, state.selectedHandIndex)
 
       // Power slot: append and keep playing.
       if (attack.length < POWER_SLOTS) {
@@ -281,14 +328,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state,
           attacks: replaceAt(state.attacks, columnIndex, [...attack, card]),
           hand: handAfter,
+          reserve: reserveAfter,
           selectedHandIndex: null,
+          selectedReserveIndex: null,
           message: null,
         }
       }
 
       // Trigger slot: the monster is defeated. Move it and its attack cards to
       // the clear pile, reveal the next monster, and check for a win.
-      const defeatedCards = [...attack, card, faceUp(monster)]
+      // Boomer-Ace: a non-Joker Ace used as trigger returns to hand instead.
+      const aceReturns = state.settings.boomersAce && !card.front.joker && card.front.rank === 1
+      const defeatedCards = aceReturns ? [...attack, faceUp(monster)] : [...attack, card, faceUp(monster)]
+      const handAfterTrigger = aceReturns ? [...handAfter, card] : handAfter
       const columnAfter = column.slice(0, -1)
       if (columnAfter.length > 0) {
         const top = columnAfter.length - 1
@@ -305,8 +357,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           dungeonColumns,
           attacks: updatedAttacks,
           lockedCount: replaceAt(state.lockedCount, columnIndex, 0),
-          hand: handAfter,
+          hand: handAfterTrigger,
+          reserve: reserveAfter,
           selectedHandIndex: null,
+          selectedReserveIndex: null,
           clearPile,
           phase: 'won',
           score: state.powerDeck.length,
@@ -316,7 +370,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Auto-draw when the hand is exhausted on the defeating card: lock all
       // remaining partial attacks (new turn starts) and draw a fresh hand.
-      if (handAfter.length === 0) {
+      if (handAfterTrigger.length === 0) {
         const lockedCount = updatedAttacks.map((a) => a.length)
         const hand = state.powerDeck.slice(0, HAND_SIZE).map(faceUp)
         const powerDeck = state.powerDeck.slice(HAND_SIZE)
@@ -327,8 +381,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             attacks: updatedAttacks,
             lockedCount,
             hand: [],
+            reserve: reserveAfter,
             powerDeck,
             selectedHandIndex: null,
+            selectedReserveIndex: null,
             clearPile,
             phase: 'lost',
             message: 'Out of power cards. You lost.',
@@ -340,8 +396,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           attacks: updatedAttacks,
           lockedCount,
           hand,
+          reserve: reserveAfter,
           powerDeck,
           selectedHandIndex: null,
+          selectedReserveIndex: null,
           clearPile,
           phase: 'playing',
           score: null,
@@ -354,8 +412,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         dungeonColumns,
         attacks: updatedAttacks,
         lockedCount: replaceAt(state.lockedCount, columnIndex, 0),
-        hand: handAfter,
+        hand: handAfterTrigger,
+        reserve: reserveAfter,
         selectedHandIndex: null,
+        selectedReserveIndex: null,
         clearPile,
         phase: 'playing',
         score: null,
@@ -384,7 +444,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'END_TURN': {
       if (state.phase !== 'playing') return state
 
-      // Discard whatever is left in hand to the damage bar.
+      // Discard whatever is left in hand to the damage bar. Reserve is never discarded.
       const damagePile = [...state.damagePile, ...state.hand.map(faceUp)]
       if (damagePile.length >= MAX_DAMAGE) {
         return {
@@ -392,6 +452,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           hand: [],
           damagePile,
           selectedHandIndex: null,
+          selectedReserveIndex: null,
           phase: 'lost',
           message: `Damage bar reached ${damagePile.length}. You lost.`,
         }
@@ -414,6 +475,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           damagePile,
           lockedCount,
           selectedHandIndex: null,
+          selectedReserveIndex: null,
           phase: 'lost',
           message: 'Out of power cards. You lost.',
         }
@@ -426,6 +488,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         damagePile,
         lockedCount,
         selectedHandIndex: null,
+        selectedReserveIndex: null,
         message: null,
       }
     }
