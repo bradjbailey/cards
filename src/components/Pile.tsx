@@ -7,6 +7,7 @@ export interface PileAppearance {
   offset: number
   direction: PileDirection
   maxVisible: number
+  showCounter: boolean
 }
 
 export interface PileProps {
@@ -18,6 +19,7 @@ const defaultAppearance: PileAppearance = {
   offset: 10,
   direction: 'up',
   maxVisible: 5,
+  showCounter: false,
 }
 
 export function createPileTestCards(count: number): CardData[] {
@@ -35,12 +37,23 @@ export function createPileTestCards(count: number): CardData[] {
 }
 
 export function Pile({ cards, appearance }: PileProps) {
-  const { offset, direction, maxVisible } = { ...defaultAppearance, ...appearance }
+  const { offset, direction, maxVisible, showCounter } = { ...defaultAppearance, ...appearance }
   const visibleCards = cards.slice(0, maxVisible)
-  const extraCards = cards.length - visibleCards.length
+  const n = visibleCards.length
+
+  const isHorizontal = direction === 'left' || direction === 'right'
+  const sizeStyle = isHorizontal
+    ? {
+        width: `calc(var(--card-width) + ${(n - 1) * offset}px + 16px)`,
+        height: `calc(var(--card-height) + 16px)`,
+      }
+    : {
+        height: `calc(var(--card-height) + ${(n - 1) * offset}px + 16px)`,
+        width: `calc(var(--card-width) + 16px)`,
+      }
 
   return (
-    <div className={`pile pile--${direction}`} aria-label={`Pile with ${cards.length} cards`}>
+    <div className={`pile pile--${direction}`} style={sizeStyle} aria-label={`Pile with ${cards.length} cards`}>
       {visibleCards.map((card, index) => {
         const offsetStyle = direction === 'left' || direction === 'right'
           ? { transform: `translateX(${index * offset}px)` }
@@ -53,7 +66,7 @@ export function Pile({ cards, appearance }: PileProps) {
         )
       })}
 
-      {extraCards > 0 ? <div className="pile__overflow">+{extraCards}</div> : null}
+      {showCounter ? <div className="pile__counter">{cards.length}</div> : null}
     </div>
   )
 }

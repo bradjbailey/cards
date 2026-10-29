@@ -4,6 +4,7 @@ import './Card.css'
 export interface FrontOfCard {
   rank: number
   suit: number
+  joker?: true
 }
 
 export type BackCardColor = 'Blue' | 'Grey' | 'Red'
@@ -30,7 +31,7 @@ const suitMap: Record<number, string> = {
 }
 
 export function Card({ faceUp, front, back }: CardProps) {
-  const frontImage = getCardFrontImagePath(front.rank, front.suit)
+  const frontImage = getCardFrontImagePath(front.rank, front.suit, front.joker)
   const backImage = getCardBackImagePath(back.color, back.version)
 
   return (
@@ -48,11 +49,13 @@ export function getNormalizedSuit(suit: number) {
     return suitMap[suit]
 }
 
-function getCardFrontImagePath(rank: number, suit: number) {
+function getCardFrontImagePath(rank: number, suit: number, joker?: true) {
+  if (joker) {
+    const color = suit === 0 || suit === 3 ? 'Black' : 'Red'
+    return playingCardAssets[`Joker_${color}`]
+  }
   const normalizedSuit = getNormalizedSuit(suit)
-  console.log(normalizedSuit)
   const assetKey = `${normalizedSuit}_${rank}`
-
   return playingCardAssets[assetKey]
 }
 

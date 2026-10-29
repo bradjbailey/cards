@@ -1,8 +1,6 @@
 .pile {
   position: relative;
   display: inline-block;
-  min-width: calc(var(--card-width) + var(--card-stack-offset));
-  min-height: calc(var(--card-height) + var(--card-stack-offset));
   padding: 8px;
 }
 
@@ -13,7 +11,7 @@
   z-index: 1;
 }
 
-.pile__overflow {
+.pile__counter {
   position: absolute;
   right: 0;
   bottom: 0;
