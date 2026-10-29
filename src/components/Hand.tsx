@@ -18,7 +18,7 @@ export function Hand({ cards, center, offset, selectedHandIndex = null, dispatch
         const isSelected = index === selectedHandIndex
         const style = {
           position: 'absolute' as const,
-          left: `calc(50% + ${center.x + index * offset}px)`,
+          left: `calc(50% + ${center.x + (index - (cards.length - 1) / 2) * offset}px)`,
           top: `calc(50% + ${center.y}px)`,
           transform: `translate(-50%, -50%)`,
           zIndex: isSelected ? 10 : index,

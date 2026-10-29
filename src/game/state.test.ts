@@ -192,8 +192,9 @@ describe('PLACE_CARD trigger', () => {
     const s = playing({
       dungeonColumns: [[monster(12, 3), monster(11, 2)], [], [], []],
       attacks: [[power(6), power(6)], [], [], []], // sum 12 >= 11 (Jack)
-      hand: [power(3, 2)], // heart trigger
+      hand: [power(3, 2)], // heart trigger — last card; auto-draw fires
       selectedHandIndex: 0,
+      powerDeck: [power(1), power(2), power(3)],
     })
     const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
     expect(next.dungeonColumns[0]).toHaveLength(1)
@@ -201,7 +202,7 @@ describe('PLACE_CARD trigger', () => {
     expect(next.attacks[0]).toHaveLength(0)
     expect(next.lockedCount[0]).toBe(0)
     expect(next.clearPile).toHaveLength(4) // 2 power + trigger + monster
-    expect(next.hand).toHaveLength(0)
+    expect(next.hand).toHaveLength(HAND_SIZE) // auto-drew after emptying hand
     expect(next.phase).toBe('playing')
     expect(next.message).toMatch(/defeated/i)
   })
@@ -243,6 +244,35 @@ describe('PLACE_CARD trigger', () => {
     expect(next.message).toMatch(/cleared/i)
   })
 })
+
+  it('auto-draws after defeating a monster when the last hand card is used', () => {
+    const s = playing({
+      // Two columns still active so the defeat does not win the game
+      dungeonColumns: [[monster(11, 2)], [monster(13, 0)], [], []],
+      attacks: [[power(6), power(6)], [], [], []],
+      hand: [power(4, 2)], // only card in hand; using it defeats the monster
+      selectedHandIndex: 0,
+      powerDeck: [power(1), power(2), power(3)],
+    })
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.phase).toBe('playing')
+    expect(next.hand).toHaveLength(HAND_SIZE)
+    expect(next.powerDeck).toHaveLength(0)
+    expect(next.message).toMatch(/defeated/i)
+  })
+
+  it('loses when auto-draw finds an empty power deck with monsters remaining', () => {
+    const s = playing({
+      dungeonColumns: [[monster(11, 2)], [monster(13, 0)], [], []],
+      attacks: [[power(6), power(6)], [], [], []],
+      hand: [power(4, 2)],
+      selectedHandIndex: 0,
+      powerDeck: [],
+    })
+    const next = gameReducer(s, { type: 'PLACE_CARD', columnIndex: 0 })
+    expect(next.phase).toBe('lost')
+    expect(next.message).toMatch(/out of power/i)
+  })
 
 // --- Recall -----------------------------------------------------------------
 

@@ -1,86 +1,110 @@
 .dungeon {
   display: flex;
   flex-direction: row;
-  gap: 24px;
+  gap: 16px;
   align-items: flex-start;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  padding: 20px 16px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(80, 40, 20, 0.3) 0%, transparent 70%),
+    linear-gradient(160deg, #111118 0%, #0d0d14 100%);
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4);
 }
+
+/* ── Column layout ─────────────────────────────────────────── */
 
 .dungeon-column {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  min-width: 112px;
+  flex: 1;
+  min-width: 108px;
 }
 
 .dungeon-column--cleared {
-  justify-content: center;
-  min-height: 200px;
+  justify-content: flex-start;
+  padding-top: 20px;
+  min-height: 220px;
 }
 
 .dungeon-column__cleared-label {
-  color: #555;
-  font-size: 0.8rem;
+  color: #3a3a50;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 2px dashed #444;
-  border-radius: 8px;
-  padding: 24px 16px;
+  letter-spacing: 0.08em;
+  border: 2px dashed #2a2a3a;
+  border-radius: 10px;
+  padding: 28px 18px;
 }
+
+/* ── Monster stack ─────────────────────────────────────────── */
 
 .dungeon-column__stack {
   display: flex;
   flex-direction: column;
   align-items: center;
+  cursor: pointer;
 }
 
 .dungeon-column__card-slot--stacked {
   margin-top: -110px;
 }
 
+/* ── Monster info badge ────────────────────────────────────── */
+
 .dungeon-column__badge {
   text-align: center;
-  max-width: 120px;
+  max-width: 130px;
+  padding: 4px 0;
 }
 
 .dungeon-column__badge-name {
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: #eee;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #d8d0c0;
+  white-space: nowrap;
 }
 
 .dungeon-column__badge-detail {
-  font-size: 0.75rem;
-  color: #aaa;
+  font-size: 0.72rem;
+  color: #8880a0;
+  margin-top: 1px;
 }
+
+/* ── Attack cards (power cards placed on this monster) ─────── */
 
 .dungeon-column__attacks {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
   width: 100%;
 }
 
 .dungeon-column__attack-card {
   position: relative;
+  transform: scale(0.72);
+  transform-origin: top center;
+  margin-bottom: -28px;
 }
 
 .dungeon-column__attack-card--locked::after {
-  content: '🔒';
+  content: '';
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  font-size: 0.75rem;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
   pointer-events: none;
 }
 
 .dungeon-column__power-info {
-  font-size: 0.75rem;
-  color: #bbb;
+  font-size: 0.72rem;
+  color: #9890b0;
   text-align: center;
   padding: 2px 4px;
+  margin-top: 32px;
+  white-space: nowrap;
 }

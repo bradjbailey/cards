@@ -1,11 +1,13 @@
 .player-area {
   display: flex;
   flex-direction: row;
-  gap: 32px;
+  gap: 24px;
   align-items: flex-start;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
+  padding: 16px 20px;
+  background: #0f0f1a;
+  border: 1px solid #2a2a3a;
+  border-radius: 10px;
+  flex-wrap: wrap;
 }
 
 .player-area__section {
@@ -17,25 +19,27 @@
 
 .player-area__hand {
   flex: 1;
+  min-width: 260px;
 }
 
 .player-area__label {
-  font-size: 0.8rem;
-  color: #ccc;
+  font-size: 0.75rem;
+  color: #7070a0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
 }
 
+/* Damage bar threat colours */
 .player-area__damage--warning .player-area__label {
-  color: #ffb74d;
+  color: #d4913a;
 }
 
 .player-area__damage--critical .player-area__label {
-  color: #e57373;
-  animation: pulse 0.8s ease-in-out infinite alternate;
+  color: #cf5060;
+  animation: damage-pulse 0.7s ease-in-out infinite alternate;
 }
 
-@keyframes pulse {
+@keyframes damage-pulse {
   from { opacity: 1; }
-  to { opacity: 0.5; }
+  to   { opacity: 0.45; }
 }

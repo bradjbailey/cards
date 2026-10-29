@@ -271,20 +271,70 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
       const dungeonColumns = replaceAt(state.dungeonColumns, columnIndex, columnAfter)
       const won = dungeonColumns.every((c) => c.length === 0)
+      const updatedAttacks = replaceAt(state.attacks, columnIndex, [])
+      const clearPile = [...state.clearPile, ...defeatedCards]
+
+      if (won) {
+        return {
+          ...state,
+          dungeonColumns,
+          attacks: updatedAttacks,
+          lockedCount: replaceAt(state.lockedCount, columnIndex, 0),
+          hand: handAfter,
+          selectedHandIndex: null,
+          clearPile,
+          phase: 'won',
+          score: state.powerDeck.length,
+          message: `You cleared the dungeon! Score: ${state.powerDeck.length}.`,
+        }
+      }
+
+      // Auto-draw when the hand is exhausted on the defeating card: lock all
+      // remaining partial attacks (new turn starts) and draw a fresh hand.
+      if (handAfter.length === 0) {
+        const lockedCount = updatedAttacks.map((a) => a.length)
+        const hand = state.powerDeck.slice(0, HAND_SIZE).map(faceUp)
+        const powerDeck = state.powerDeck.slice(HAND_SIZE)
+        if (hand.length === 0) {
+          return {
+            ...state,
+            dungeonColumns,
+            attacks: updatedAttacks,
+            lockedCount,
+            hand: [],
+            powerDeck,
+            selectedHandIndex: null,
+            clearPile,
+            phase: 'lost',
+            message: 'Out of power cards. You lost.',
+          }
+        }
+        return {
+          ...state,
+          dungeonColumns,
+          attacks: updatedAttacks,
+          lockedCount,
+          hand,
+          powerDeck,
+          selectedHandIndex: null,
+          clearPile,
+          phase: 'playing',
+          score: null,
+          message: `${monsterName(monster)} defeated!`,
+        }
+      }
 
       return {
         ...state,
         dungeonColumns,
-        attacks: replaceAt(state.attacks, columnIndex, []),
+        attacks: updatedAttacks,
         lockedCount: replaceAt(state.lockedCount, columnIndex, 0),
         hand: handAfter,
         selectedHandIndex: null,
-        clearPile: [...state.clearPile, ...defeatedCards],
-        phase: won ? 'won' : 'playing',
-        score: won ? state.powerDeck.length : null,
-        message: won
-          ? `You cleared the dungeon! Score: ${state.powerDeck.length}.`
-          : `${monsterName(monster)} defeated!`,
+        clearPile,
+        phase: 'playing',
+        score: null,
+        message: `${monsterName(monster)} defeated!`,
       }
     }
 
