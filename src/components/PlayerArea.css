@@ -28,6 +28,22 @@
   gap: 8px;
 }
 
+.player-area__damage-section {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 8px;
+  transition: background 0.15s;
+}
+
+.player-area__damage-section:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.player-area__damage-section:focus-visible {
+  outline: 2px solid #cf6679;
+  outline-offset: 2px;
+}
+
 .player-area__label {
   font-size: 0.75rem;
   color: #7070a0;

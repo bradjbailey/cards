@@ -3,11 +3,18 @@ import { gameReducer, initialState, hasInsufficientAttack } from '../game/state'
 import { Dungeon } from './Dungeon'
 import { PlayerArea } from './PlayerArea'
 import { NewGameModal } from './NewGameModal'
+import { ReserveSelection } from './ReserveSelection'
+import { CardPeek } from './CardPeek'
+import { DevPanel } from './DevPanel'
 import './GameBoard.css'
 
 export function GameBoard() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [showModal, setShowModal] = useState(false)
+
+  if (state.phase === 'reserve-selection') {
+    return <ReserveSelection pool={state.selectionPool} dispatch={dispatch} />
+  }
 
   if (state.phase === 'idle') {
     return (
@@ -22,6 +29,7 @@ export function GameBoard() {
             onCancel={() => setShowModal(false)}
           />
         )}
+        {import.meta.env.DEV && <DevPanel dispatch={dispatch} />}
       </div>
     )
   }
@@ -64,6 +72,18 @@ export function GameBoard() {
           <p className="game-board__message">{state.message}</p>
         )}
       </div>
+      {import.meta.env.DEV && <DevPanel dispatch={dispatch} />}
+      {pendingAbility?.front.suit === 1 && state.powerDeck.length > 0 && (
+        <CardPeek
+          card={state.powerDeck[state.powerDeck.length - 1]}
+          title="King of Diamonds"
+          instruction="Bottom card of your power deck:"
+          confirmLabel="Move to Top"
+          dismissLabel="Leave"
+          onConfirm={() => dispatch({ type: 'USE_KING_DIAMONDS', choice: 'take' })}
+          onDismiss={() => dispatch({ type: 'USE_KING_DIAMONDS', choice: 'leave' })}
+        />
+      )}
       {gameOver && (
         <div className="game-board__overlay">
           <div className="game-board__overlay-box">

@@ -23,7 +23,7 @@ import { createFullDeck, shuffle, separateDecks } from './deck'
  *  - Win by clearing all 12 monsters. Score = cards left in the power deck.
  */
 
-export type GamePhase = 'idle' | 'playing' | 'won' | 'lost'
+export type GamePhase = 'idle' | 'reserve-selection' | 'playing' | 'won' | 'lost'
 
 export interface GameSettings {
   boomersAce: boolean
@@ -87,6 +87,8 @@ export interface GameState {
   inventory: CardData[]
   /** King currently being activated (awaiting target selection for K♥ and K♠). */
   pendingKingAbility: CardData | null
+  /** Cards awaiting reserve selection (Power Reserve variant, reserve-selection phase only). */
+  selectionPool: CardData[]
 }
 
 export const initialState: GameState = {
@@ -106,6 +108,7 @@ export const initialState: GameState = {
   settings: defaultSettings,
   inventory: [],
   pendingKingAbility: null,
+  selectionPool: [],
 }
 
 export type GameAction =
@@ -120,6 +123,9 @@ export type GameAction =
   | { type: 'CANCEL_KING_ABILITY' }
   | { type: 'USE_KING_HEARTS'; handIndex: number }
   | { type: 'USE_KING_SPADES'; columnIndex: number; slotIndex: number }
+  | { type: 'USE_KING_DIAMONDS'; choice: 'take' | 'leave' }
+  | { type: 'CONFIRM_RESERVE'; reserveIndices: [number, number] }
+  | { type: 'DEBUG_SET_STATE'; state: GameState }
 
 // --- Pure helpers (exported for the UI and tests) ---------------------------
 
@@ -253,6 +259,9 @@ function dealDungeon(monsters: CardData[]): CardData[][] {
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case 'DEBUG_SET_STATE':
+      return action.state
+
     case 'BACK_TO_MENU':
       return initialState
 
@@ -261,10 +270,33 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const { monsters, power } = separateDecks(createFullDeck())
       const dungeonColumns = dealDungeon(shuffle(monsters))
       const shuffledPower = shuffle(power)
+      const SELECTION_SIZE = HAND_SIZE + 2 // 5 cards for reserve selection
+      if (settings.powerReserve) {
+        const selectionPool = shuffledPower.slice(0, SELECTION_SIZE).map(faceUp)
+        const powerDeck = shuffledPower.slice(SELECTION_SIZE)
+        return {
+          phase: 'reserve-selection',
+          dungeonColumns,
+          attacks: [[], [], [], []],
+          lockedCount: [0, 0, 0, 0],
+          powerDeck,
+          hand: [],
+          selectedHandIndex: null,
+          reserve: [],
+          selectedReserveIndex: null,
+          damagePile: [],
+          clearPile: [],
+          message: null,
+          score: null,
+          settings,
+          inventory: [],
+          pendingKingAbility: null,
+          selectionPool,
+        }
+      }
+
       const hand = shuffledPower.slice(0, HAND_SIZE).map(faceUp)
-      const reserveSize = settings.powerReserve ? 2 : 0
-      const reserve = shuffledPower.slice(HAND_SIZE, HAND_SIZE + reserveSize).map(faceUp)
-      const powerDeck = shuffledPower.slice(HAND_SIZE + reserveSize)
+      const powerDeck = shuffledPower.slice(HAND_SIZE)
       return {
         phase: 'playing',
         dungeonColumns,
@@ -273,7 +305,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         powerDeck,
         hand,
         selectedHandIndex: null,
-        reserve,
+        reserve: [],
         selectedReserveIndex: null,
         damagePile: [],
         clearPile: [],
@@ -282,6 +314,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         settings,
         inventory: [],
         pendingKingAbility: null,
+        selectionPool: [],
       }
     }
 
@@ -521,10 +554,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ACTIVATE_KING': {
       if (state.phase !== 'playing') return state
       const { kingCard } = action
+
+      // Re-clicking a king that is already pending cancels the ability.
+      // (K♦, K♥, K♠ all stay in inventory while their ability is pending.)
+      if (state.pendingKingAbility === kingCard) {
+        return { ...state, pendingKingAbility: null, message: null }
+      }
+
       const remainingInventory = state.inventory.filter(k => k !== kingCard)
       const suit = kingCard.front.suit
 
-      // K♣ (Clubs, 0): draw the top card of the power deck into hand.
+      // K♣ (Clubs, 0): immediately draw the top card of the power deck into hand.
       if (suit === 0) {
         if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to draw.' }
         return {
@@ -539,18 +579,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // K♦ (Diamonds, 1): draw the bottom card of the power deck into hand.
+      // K♦ (Diamonds, 1): peek at the bottom card; player chooses take or leave.
       if (suit === 1) {
-        if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to draw.' }
-        const bottom = state.powerDeck[state.powerDeck.length - 1]
+        if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to peek.' }
         return {
           ...state,
-          hand: [...state.hand, faceUp(bottom)],
-          powerDeck: state.powerDeck.slice(0, -1),
-          inventory: remainingInventory,
+          pendingKingAbility: kingCard,
           selectedHandIndex: null,
           selectedReserveIndex: null,
-          pendingKingAbility: null,
           message: null,
         }
       }
@@ -569,6 +605,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CANCEL_KING_ABILITY':
       return { ...state, pendingKingAbility: null, message: null }
+
+    case 'USE_KING_DIAMONDS': {
+      if (state.phase !== 'playing' || !state.pendingKingAbility) return state
+      const kingCard = state.pendingKingAbility
+      const deck = state.powerDeck
+      if (deck.length === 0) return { ...state, pendingKingAbility: null, message: null }
+      const bottom = deck[deck.length - 1]
+      const newDeck = action.choice === 'take'
+        ? [faceUp(bottom), ...deck.slice(0, -1)]
+        : deck
+      return {
+        ...state,
+        powerDeck: newDeck,
+        inventory: state.inventory.filter(k => k !== kingCard),
+        pendingKingAbility: null,
+        message: null,
+      }
+    }
 
     case 'USE_KING_HEARTS': {
       if (state.phase !== 'playing' || !state.pendingKingAbility) return state
@@ -601,6 +655,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         inventory: state.inventory.filter(k => k !== kingCard),
         pendingKingAbility: null,
         message: null,
+      }
+    }
+
+    case 'CONFIRM_RESERVE': {
+      if (state.phase !== 'reserve-selection') return state
+      const [i, j] = action.reserveIndices
+      const reserve = [state.selectionPool[i], state.selectionPool[j]]
+      const hand = state.selectionPool.filter((_, idx) => idx !== i && idx !== j)
+      return {
+        ...state,
+        phase: 'playing',
+        hand,
+        reserve,
+        selectionPool: [],
       }
     }
 

@@ -465,11 +465,30 @@ describe('hasInsufficientAttack', () => {
 describe('Power Reserve', () => {
   const withReserve: GameSettings = { boomersAce: false, powerReserve: true, kingAbilities: false }
 
-  it('NEW_GAME deals 2 reserve cards and shrinks the power deck by 2', () => {
+  it('NEW_GAME with powerReserve enters reserve-selection phase with 5 cards in the pool', () => {
     const s = gameReducer(initialState, { type: 'NEW_GAME', settings: withReserve })
-    expect(s.reserve).toHaveLength(2)
-    expect(s.reserve.every(c => c.faceUp)).toBe(true)
-    expect(s.powerDeck).toHaveLength(42 - HAND_SIZE - 2)
+    expect(s.phase).toBe('reserve-selection')
+    expect(s.selectionPool).toHaveLength(5)
+    expect(s.selectionPool.every(c => c.faceUp)).toBe(true)
+    expect(s.hand).toHaveLength(0)
+    expect(s.reserve).toHaveLength(0)
+    expect(s.powerDeck).toHaveLength(42 - 5)
+  })
+
+  it('CONFIRM_RESERVE splits pool into reserve (2) and hand (3), enters playing', () => {
+    const pool = [power(1), power(2), power(3), power(4), power(5)]
+    const s: GameState = { ...initialState, phase: 'reserve-selection' as const, selectionPool: pool, settings: withReserve }
+    const next = gameReducer(s, { type: 'CONFIRM_RESERVE', reserveIndices: [1, 3] })
+    expect(next.phase).toBe('playing')
+    expect(next.reserve.map(c => c.front.rank)).toEqual([2, 4])
+    expect(next.hand.map(c => c.front.rank).sort()).toEqual([1, 3, 5])
+    expect(next.selectionPool).toHaveLength(0)
+  })
+
+  it('NEW_GAME without powerReserve goes straight to playing with no selectionPool', () => {
+    const s = gameReducer(initialState, { type: 'NEW_GAME' })
+    expect(s.phase).toBe('playing')
+    expect(s.selectionPool).toHaveLength(0)
   })
 
   it('SELECT_RESERVE selects and deselects a reserve card', () => {
@@ -629,7 +648,7 @@ describe('King abilities', () => {
     expect(next.powerDeck).toHaveLength(1)
   })
 
-  it('ACTIVATE_KING K♦ draws the bottom card of the deck', () => {
+  it('ACTIVATE_KING K♦ sets pendingKingAbility for peek (does not draw immediately)', () => {
     const bottomCard = power(9)
     const king = { ...monster(13, 1), faceUp: true }
     const s = playing({
@@ -639,10 +658,43 @@ describe('King abilities', () => {
       powerDeck: [power(3), power(4), bottomCard],
     })
     const next = gameReducer(s, { type: 'ACTIVATE_KING', kingCard: king })
-    expect(next.hand).toHaveLength(2)
-    expect(next.hand[1].front.rank).toBe(9)
-    expect(next.powerDeck).toHaveLength(2)
+    expect(next.pendingKingAbility).toEqual(king)
+    expect(next.hand).toHaveLength(1)       // nothing drawn yet
+    expect(next.powerDeck).toHaveLength(3)  // deck unchanged
+    expect(next.inventory).toHaveLength(1)  // king stays until confirmed
+  })
+
+  it('USE_KING_DIAMONDS take moves bottom card to top of deck', () => {
+    const bottomCard = power(9)
+    const king = { ...monster(13, 1), faceUp: true }
+    const s = playing({
+      settings: kingsOn,
+      inventory: [king],
+      hand: [power(2)],
+      powerDeck: [power(3), power(4), bottomCard],
+      pendingKingAbility: king,
+    })
+    const next = gameReducer(s, { type: 'USE_KING_DIAMONDS', choice: 'take' })
+    expect(next.powerDeck[0].front.rank).toBe(9)  // bottom moved to top
+    expect(next.powerDeck).toHaveLength(3)
     expect(next.inventory).toHaveLength(0)
+    expect(next.pendingKingAbility).toBeNull()
+  })
+
+  it('USE_KING_DIAMONDS leave leaves deck unchanged', () => {
+    const bottomCard = power(9)
+    const king = { ...monster(13, 1), faceUp: true }
+    const s = playing({
+      settings: kingsOn,
+      inventory: [king],
+      powerDeck: [power(3), power(4), bottomCard],
+      pendingKingAbility: king,
+    })
+    const next = gameReducer(s, { type: 'USE_KING_DIAMONDS', choice: 'leave' })
+    expect(next.powerDeck[2].front.rank).toBe(9)  // bottom card still at bottom
+    expect(next.powerDeck).toHaveLength(3)
+    expect(next.inventory).toHaveLength(0)
+    expect(next.pendingKingAbility).toBeNull()
   })
 
   it('ACTIVATE_KING K♥ sets pendingKingAbility', () => {

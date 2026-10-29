@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import type { Dispatch } from 'react'
 import { Pile } from './Pile'
 import { Hand } from './Hand'
 import Card from './Card'
+import { DiscardOverlay } from './DiscardOverlay'
 import { MAX_DAMAGE, type GameAction, type GameState } from '../game/state'
 import './PlayerArea.css'
 
@@ -11,6 +13,8 @@ interface PlayerAreaProps {
 }
 
 export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
+  const [showDiscard, setShowDiscard] = useState(false)
+  const [showCleared, setShowCleared] = useState(false)
   const { powerDeck, hand, reserve, damagePile, clearPile, selectedHandIndex, selectedReserveIndex, inventory, pendingKingAbility } = state
 
   const pendingSuit = pendingKingAbility?.front.suit ?? null
@@ -44,15 +48,26 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
         />
       </div>
 
-      <div className={`player-area__section ${damageClass}`}>
+      <div
+        className={`player-area__section player-area__damage-section ${damageClass}`}
+        onClick={() => setShowDiscard(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setShowDiscard(true)}
+        title="Click to view discard pile"
+      >
         <div className="player-area__label">
           Damage ({damagePile.length}/{MAX_DAMAGE})
         </div>
         <Pile
           cards={damagePile}
-          appearance={{ offset: 18, direction: 'right', maxVisible: MAX_DAMAGE }}
+          appearance={{ offset: 4, direction: 'up', maxVisible: 5, showCounter: true }}
         />
       </div>
+
+      {showDiscard && (
+        <DiscardOverlay title="Discard Pile" cards={damagePile} onBack={() => setShowDiscard(false)} />
+      )}
 
       {reserve.length > 0 && (
         <div className="player-area__section">
@@ -86,9 +101,24 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
         </div>
       )}
 
-      <div className="player-area__section">
+      <div
+        className="player-area__section player-area__damage-section"
+        onClick={() => setShowCleared(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setShowCleared(true)}
+        title="Click to view cleared pile"
+      >
         <div className="player-area__label">Cleared ({clearPile.length})</div>
+        <Pile
+          cards={clearPile.map(c => ({ ...c, faceUp: false }))}
+          appearance={{ offset: 2, direction: 'up', maxVisible: 4, showCounter: true }}
+        />
       </div>
+
+      {showCleared && (
+        <DiscardOverlay title="Cleared Pile" cards={clearPile} onBack={() => setShowCleared(false)} />
+      )}
     </div>
   )
 }
