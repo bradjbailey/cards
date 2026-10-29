@@ -11,7 +11,7 @@ export function GameBoard() {
     return (
       <div className="game-board game-board--idle">
         <h1>Clear the Dungeon</h1>
-        <button className="game-board__start" onClick={() => dispatch({ type: 'SETUP' })}>
+        <button className="game-board__start" onClick={() => dispatch({ type: 'NEW_GAME' })}>
           Start Game
         </button>
       </div>
