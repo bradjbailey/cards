@@ -345,6 +345,19 @@ describe('END_TURN', () => {
   })
 })
 
+// --- BACK_TO_MENU -----------------------------------------------------------
+
+describe('BACK_TO_MENU', () => {
+  it('resets to initialState from any phase', () => {
+    const won = playing({ phase: 'won', score: 10, message: 'You won!' })
+    const back = gameReducer(won, { type: 'BACK_TO_MENU' })
+    expect(back.phase).toBe('idle')
+    expect(back.hand).toHaveLength(0)
+    expect(back.dungeonColumns).toEqual([[], [], [], []])
+    expect(back.score).toBeNull()
+  })
+})
+
 // --- Terminal states --------------------------------------------------------
 
 describe('terminal states', () => {

@@ -152,7 +152,7 @@ Everything below is about making that board playable.
 
 ## 4. The work
 
-### Phase B — Interactivity (the core of the task)
+### Phase B — Interactivity ✅ DONE
 
 **B1. `Card.tsx` — make cards clickable and styleable.**
 Add optional props (keep existing behavior when they're absent):
@@ -243,7 +243,7 @@ return (
 > or pass narrow props per component. Threading `state`/`dispatch` is simplest and
 > fine for a game this size.
 
-### Phase C — Polish
+### Phase C — Polish ✅ DONE
 
 - Clear legal-target highlighting and a readable invalid-move message.
 - The "needed suit / running power" indicator on each monster.
@@ -253,11 +253,10 @@ return (
 - Optional: defeat/flip animations, drag-and-drop instead of click-to-select
   (click-to-select is the baseline; don't start with drag-and-drop).
 
-### Phase F — Small cleanups
+### Phase F — Small cleanups ✅ DONE
 
-- `index.html` references `/src/main.jsx`; the file is `main.tsx`. It works today
-  via Vite's resolution, but change it to `/src/main.tsx` for clarity.
-- Card `alt` text (see B1).
+- `index.html` now references `/src/main.tsx`. ✅
+- Card `alt` text uses `rankMap`/`suitMap` (e.g. "Queen of Hearts"). ✅
 
 ---
 
@@ -278,19 +277,22 @@ return (
 
 ## 6. Definition of done
 
-- [ ] From a fresh load you can start a game, and the opening hand + four revealed
+- [x] From a fresh load you can start a game, and the opening hand + four revealed
       monsters are visible.
-- [ ] Selecting a hand card highlights legal target columns; illegal clicks show a
+- [x] Selecting a hand card highlights legal target columns; illegal clicks show a
       helpful message and change nothing.
-- [ ] You can place two power cards then a matching-suit (or Joker) trigger and the
+- [x] You can place two power cards then a matching-suit (or Joker) trigger and the
       monster is defeated, moves to the clear pile, and the next monster is
       revealed.
-- [ ] Recall works for cards placed this turn and is refused for locked cards.
-- [ ] End Turn discards the remaining hand into the damage bar and draws a new hand;
+- [x] Recall works for cards placed this turn and is refused for locked cards.
+- [x] End Turn discards the remaining hand into the damage bar and draws a new hand;
       the damage counter is visible.
-- [ ] Winning shows the score; both loss conditions (damage bar full, power deck
+- [x] Winning shows the score; both loss conditions (damage bar full, power deck
       empty) end the game with a message. Play Again resets.
-- [ ] `npm test`, `npx tsc --noEmit`, `npm run lint`, `npm run build` all pass.
+- [x] `npm test`, `npx tsc --noEmit`, `npm run lint`, `npm run build` all pass.
+
+**All items complete.** The game is fully playable. Remaining optional work is
+in §7 (stretch variations — each needs new reducer actions + tests before UI).
 
 ---
 

@@ -1,19 +1,27 @@
-import { useReducer } from 'react'
+import { useReducer, useState } from 'react'
 import { gameReducer, initialState } from '../game/state'
 import { Dungeon } from './Dungeon'
 import { PlayerArea } from './PlayerArea'
+import { NewGameModal } from './NewGameModal'
 import './GameBoard.css'
 
 export function GameBoard() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
+  const [showModal, setShowModal] = useState(false)
 
   if (state.phase === 'idle') {
     return (
       <div className="game-board game-board--idle">
         <h1>Clear the Dungeon</h1>
-        <button className="game-board__start" onClick={() => dispatch({ type: 'NEW_GAME' })}>
-          Start Game
+        <button className="game-board__start" onClick={() => setShowModal(true)}>
+          New Game
         </button>
+        {showModal && (
+          <NewGameModal
+            onStart={() => { dispatch({ type: 'NEW_GAME' }); setShowModal(false) }}
+            onCancel={() => setShowModal(false)}
+          />
+        )}
       </div>
     )
   }
@@ -48,9 +56,9 @@ export function GameBoard() {
             )}
             <button
               className="game-board__start"
-              onClick={() => dispatch({ type: 'NEW_GAME' })}
+              onClick={() => dispatch({ type: 'BACK_TO_MENU' })}
             >
-              Play Again
+              Main Menu
             </button>
           </div>
         </div>

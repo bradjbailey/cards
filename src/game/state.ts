@@ -83,6 +83,7 @@ export const initialState: GameState = {
 
 export type GameAction =
   | { type: 'NEW_GAME' }
+  | { type: 'BACK_TO_MENU' }
   | { type: 'SELECT_HAND'; index: number }
   | { type: 'PLACE_CARD'; columnIndex: number }
   | { type: 'RECALL_CARD'; columnIndex: number; slotIndex: number }
@@ -203,6 +204,9 @@ function dealDungeon(monsters: CardData[]): CardData[][] {
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case 'BACK_TO_MENU':
+      return initialState
+
     case 'NEW_GAME': {
       const { monsters, power } = separateDecks(createFullDeck())
       const dungeonColumns = dealDungeon(shuffle(monsters))
