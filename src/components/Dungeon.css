@@ -94,17 +94,42 @@
   z-index: 10;
 }
 
-/* ── Attack power hint ───────────────────────────────────────── */
+/* ── Attack progress badge (overlaid on the visible monster card) ── */
 
-.dungeon-cell__power-info {
+.dungeon-cell__attack-badge {
   position: absolute;
-  /* Sits just below the attack card stack */
-  bottom: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.65rem;
-  color: #7870a0;
-  text-align: center;
-  white-space: nowrap;
+  top: 10px;
+  right: 4px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: rgba(20, 16, 36, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   pointer-events: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  backdrop-filter: blur(2px);
 }
+
+.dungeon-cell__attack-badge--ready {
+  background: rgba(20, 60, 24, 0.88);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+.dungeon-cell__attack-badge--warn {
+  background: rgba(60, 16, 16, 0.88);
+  border-color: rgba(220, 60, 60, 0.5);
+}
+
+.dungeon-cell__suit-pip--0,
+.dungeon-cell__suit-pip--3 { color: #d0d0d0; }
+
+.dungeon-cell__suit-pip--1,
+.dungeon-cell__suit-pip--2 { color: #e05050; }
+
+.dungeon-cell__power-fraction { color: #e8e0d0; }

@@ -5,11 +5,12 @@ import {
   monsterLevel,
   placementError,
   powerSum,
-  suitName,
   POWER_SLOTS,
   type GameAction,
   type GameState,
 } from '../game/state'
+
+const SUIT_SYMBOLS = ['♣', '♦', '♥', '♠']
 
 interface DungeonCellProps {
   row: number
@@ -40,7 +41,6 @@ export function DungeonCell({ row, col, state, dispatch }: DungeonCellProps) {
 
   // Face-down cell: covered by another card — show card back, no interaction.
   if (!cell.faceUp) {
-    // Stack visual depth indicator: cells covered by something below show as faint backs
     const depth = isCoveredBy(state.coverableBy, state.dungeonGrid, row, col) ? ' dungeon-cell--deep' : ''
     return (
       <div className={`dungeon-cell${depth}`}>
@@ -53,10 +53,22 @@ export function DungeonCell({ row, col, state, dispatch }: DungeonCellProps) {
   function attackCardStyle(i: number, total: number): CSSProperties {
     const center = (total - 1) / 2
     const offset = i - center
-    const txPx = offset * 22   // horizontal spread in screen space
-    const rotDeg = offset * 9  // fan rotation
+    const txPx = offset * 22
+    const rotDeg = offset * 9
     return { transform: `translateX(${txPx}px) rotate(${rotDeg}deg)`, zIndex: i + 1 }
   }
+
+  // Badge state for the attack progress overlay.
+  const sum = attack.length > 0 ? powerSum(attack, state.settings) : 0
+  const level = monsterLevel(cell)
+  const suit = cell.front.suit
+  const powerReady = attack.length >= POWER_SLOTS && sum >= level
+  const powerBlocked = attack.length >= POWER_SLOTS && sum < level
+  const badgeClass = [
+    'dungeon-cell__attack-badge',
+    powerReady ? 'dungeon-cell__attack-badge--ready' : '',
+    powerBlocked ? 'dungeon-cell__attack-badge--warn' : '',
+  ].filter(Boolean).join(' ')
 
   // Face-up (active) cell: show monster + overlapping attack cards.
   return (
@@ -69,28 +81,34 @@ export function DungeonCell({ row, col, state, dispatch }: DungeonCellProps) {
       />
 
       {attack.length > 0 && (
-        <div className="dungeon-cell__attacks">
-          {attack.map((card, slotIndex) => (
-            <div
-              key={slotIndex}
-              className={`dungeon-cell__attack-wrapper${slotIndex < locked ? ' dungeon-cell__attack-wrapper--locked' : ''}`}
-              style={attackCardStyle(slotIndex, attack.length)}
-            >
-              <Card
-                {...card}
-                highlight={pendingSpades ? true : undefined}
-                onClick={pendingSpades
-                  ? () => dispatch({ type: 'USE_KING_SPADES', row, col, slotIndex })
-                  : () => dispatch({ type: 'RECALL_CARD', row, col, slotIndex })}
-              />
-            </div>
-          ))}
-          <div className="dungeon-cell__power-info">
-            {attack.length < POWER_SLOTS
-              ? `${powerSum(attack, state.settings)}/${monsterLevel(cell)} · need ${suitName(cell.front.suit)}`
-              : `${suitName(cell.front.suit)} trigger · ${powerSum(attack, state.settings)}/${monsterLevel(cell)}`}
+        <>
+          <div className={badgeClass}>
+            <span className={`dungeon-cell__suit-pip dungeon-cell__suit-pip--${suit}`}>
+              {SUIT_SYMBOLS[suit]}
+            </span>
+            <span className="dungeon-cell__power-fraction">
+              {sum}/{level}
+            </span>
           </div>
-        </div>
+
+          <div className="dungeon-cell__attacks">
+            {attack.map((card, slotIndex) => (
+              <div
+                key={slotIndex}
+                className={`dungeon-cell__attack-wrapper${slotIndex < locked ? ' dungeon-cell__attack-wrapper--locked' : ''}`}
+                style={attackCardStyle(slotIndex, attack.length)}
+              >
+                <Card
+                  {...card}
+                  highlight={pendingSpades ? true : undefined}
+                  onClick={pendingSpades
+                    ? () => dispatch({ type: 'USE_KING_SPADES', row, col, slotIndex })
+                    : () => dispatch({ type: 'RECALL_CARD', row, col, slotIndex })}
+                />
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
