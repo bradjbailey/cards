@@ -81,11 +81,12 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
         <Pile
           cards={clearPile.map(c => ({ ...c, faceUp: false }))}
           appearance={{ offset: 2, direction: 'up', maxVisible: 4, showCounter: true }}
+          sortable
         />
       </div>
 
       {showCleared && (
-        <DiscardOverlay title="Cleared Pile" cards={clearPile} onBack={() => setShowCleared(false)} />
+        <DiscardOverlay title="Cleared Pile" cards={clearPile} onBack={() => setShowCleared(false)} sortable />
       )}
 
       {reserve.length > 0 && (

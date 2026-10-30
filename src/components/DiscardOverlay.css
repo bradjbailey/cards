@@ -43,6 +43,35 @@
   letter-spacing: 0.04em;
 }
 
+.discard-overlay__sort-controls {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.discard-overlay__sort-btn {
+  padding: 5px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #888;
+  letter-spacing: 0.03em;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.discard-overlay__sort-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #bbb;
+}
+
+.discard-overlay__sort-btn--active {
+  background: rgba(232, 216, 122, 0.12);
+  border-color: rgba(232, 216, 122, 0.35);
+  color: var(--color-primary);
+}
+
 .discard-overlay__empty {
   padding: 48px;
   color: #5a5a80;
@@ -63,4 +92,50 @@
   /* compensate scale so items still flow correctly */
   margin-right: calc(var(--card-width) * -0.15);
   margin-bottom: calc(var(--card-height) * -0.15);
+}
+
+/* ── Grouped layout ─────────────────────────────────────────── */
+
+.discard-overlay__groups {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 28px 24px;
+  gap: 6px;
+}
+
+.discard-overlay__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.discard-overlay__group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #888;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 10px;
+}
+
+.discard-overlay__group-header--clubs,
+.discard-overlay__group-header--spades { color: #b0b0b0; }
+.discard-overlay__group-header--diamonds,
+.discard-overlay__group-header--hearts { color: #d06060; }
+
+.discard-overlay__group-count {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #555;
+}
+
+.discard-overlay__group-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
 }
