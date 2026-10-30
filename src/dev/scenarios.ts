@@ -32,7 +32,7 @@ export function boomersAceScenario(): GameState {
   return {
     ...initialState,
     phase: 'playing',
-    settings: { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard' as const },
+    settings: { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard' as const, cardBack: { color: 'Blue' as const, version: 1 as const } },
     dungeonGrid: [[
       monster(11, 0),   // Jack of Clubs — active, attack-ready
       monster(11, 1),   // Jack of Diamonds
@@ -71,7 +71,7 @@ export function kingAbilitiesScenario(): GameState {
   return {
     ...initialState,
     phase: 'playing',
-    settings: { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard' as const },
+    settings: { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard' as const, cardBack: { color: 'Blue' as const, version: 1 as const } },
     dungeonGrid: [[
       monster(11, 0),  // Jack of Clubs
       monster(12, 1),  // Queen of Diamonds

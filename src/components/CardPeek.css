@@ -14,8 +14,8 @@
   align-items: center;
   gap: 20px;
   padding: 40px 56px;
-  background: #13131f;
-  border: 2px solid #c89b3c;
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary-border);
   border-radius: 16px;
   box-shadow: 0 8px 48px rgba(0, 0, 0, 0.7), 0 0 32px rgba(200, 155, 60, 0.15);
   max-width: 360px;
@@ -25,7 +25,7 @@
 .card-peek__title {
   margin: 0;
   font-size: 1.6rem;
-  color: #e8c050;
+  color: var(--color-primary);
   letter-spacing: 0.04em;
   text-shadow: 0 2px 10px rgba(232, 192, 80, 0.3);
 }
@@ -71,12 +71,12 @@
 }
 
 .card-peek__btn--confirm {
-  background: #2a1e10;
-  color: #e8c050;
-  border-color: #c89b3c;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
 }
 
 .card-peek__btn--confirm:hover {
-  background: #3a2818;
-  border-color: #e8c050;
+  background: var(--color-primary-bg-hover);
+  border-color: var(--color-primary);
 }

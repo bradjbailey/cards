@@ -188,7 +188,7 @@ describe('NEW_GAME', () => {
   })
 
   it('stores custom settings passed at game start', () => {
-    const custom: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: true, layout: 'standard' }
+    const custom: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: true, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
     const s = gameReducer(initialState, { type: 'NEW_GAME', settings: custom })
     expect(s.settings).toEqual(custom)
   })
@@ -594,7 +594,7 @@ describe('hasInsufficientAttack', () => {
   })
 
   it('accounts for boomers-ace power values', () => {
-    const boomers = { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard' as const }
+    const boomers = { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard' as const, cardBack: { color: 'Blue' as const, version: 1 as const } }
     const s = playing({
       settings: boomers,
       dungeonGrid: g1(monster(11, 0), null, null, null),
@@ -608,7 +608,7 @@ describe('hasInsufficientAttack', () => {
 // --- Power Reserve variant --------------------------------------------------
 
 describe('Power Reserve', () => {
-  const withReserve: GameSettings = { boomersAce: false, powerReserve: true, kingAbilities: false, layout: 'standard' }
+  const withReserve: GameSettings = { boomersAce: false, powerReserve: true, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
 
   it('NEW_GAME with powerReserve enters reserve-selection phase with 5 cards in the pool', () => {
     const s = gameReducer(initialState, { type: 'NEW_GAME', settings: withReserve })
@@ -693,11 +693,11 @@ describe('Power Reserve', () => {
 // --- Boomer-Ace variant -----------------------------------------------------
 
 describe('Boomer-Ace', () => {
-  const boomers: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard' }
+  const boomers: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
 
   it('scores an Ace as 11 with boomersAce on, 1 without', () => {
     const ace = power(1)
-    expect(cardPower(ace, { boomersAce: false, powerReserve: false, kingAbilities: false, layout: 'standard' })).toBe(1)
+    expect(cardPower(ace, { boomersAce: false, powerReserve: false, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 } })).toBe(1)
     expect(cardPower(ace, boomers)).toBe(11)
   })
 
@@ -741,7 +741,7 @@ describe('Boomer-Ace', () => {
 // --- King abilities variant -------------------------------------------------
 
 describe('King abilities', () => {
-  const kingsOn: GameSettings = { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard' }
+  const kingsOn: GameSettings = { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
 
   function kingSetup() {
     const king = monster(13, 0)

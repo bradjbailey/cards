@@ -1,4 +1,4 @@
-import type { CardData } from '../components/Card'
+import type { CardData, BackOfCard } from '../components/Card'
 import { createFullDeck, shuffle, separateDecks } from './deck'
 import { getLayout, DEFAULT_LAYOUT, type LayoutKey, type ExtraCover } from './layouts'
 
@@ -31,6 +31,7 @@ export interface GameSettings {
   powerReserve: boolean
   kingAbilities: boolean
   layout: LayoutKey
+  cardBack: BackOfCard
 }
 
 export const defaultSettings: GameSettings = {
@@ -38,6 +39,7 @@ export const defaultSettings: GameSettings = {
   powerReserve: false,
   kingAbilities: false,
   layout: DEFAULT_LAYOUT,
+  cardBack: { color: 'Blue', version: 1 },
 }
 
 /** Cards drawn into the hand each turn. */
@@ -340,7 +342,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'NEW_GAME': {
       const settings = action.settings ?? defaultSettings
       const layout = getLayout(settings.layout)
-      const { monsters, power } = separateDecks(createFullDeck())
+      const { monsters, power } = separateDecks(createFullDeck(settings.cardBack))
       const { grid: dungeonGrid, coverableBy } = dealDungeon(shuffle(monsters), layout.rows, layout.extraCovers)
       const emptyAttacks: (CardData[] | null)[][] = layout.rows.map(w =>
         Array.from({ length: w }, () => [] as CardData[])

@@ -1,3 +1,16 @@
+:root {
+  --color-bg: #0d0d14;
+  --color-panel: #0f0f1a;
+  --color-surface: #13131f;
+  --color-border: #2a2a3a;
+  --color-primary: #e8d87a;
+  --color-primary-border: #c8a830;
+  --color-primary-bg: #2a2010;
+  --color-primary-bg-hover: #3a2e14;
+  --color-primary-hover: #e8d050;
+  --color-secondary: #7070a0;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -5,7 +18,7 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
-  background: #0d0d14;
+  background: var(--color-bg);
   color: #e8e0d0;
   min-height: 100vh;
 }

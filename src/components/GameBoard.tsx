@@ -1,16 +1,20 @@
 import { useReducer, useState } from 'react'
 import { gameReducer, initialState, hasInsufficientAttack } from '../game/state'
+import { useAppSettings } from '../hooks/useAppSettings'
 import { Dungeon } from './Dungeon'
 import { PlayerArea } from './PlayerArea'
 import { NewGameModal } from './NewGameModal'
 import { ReserveSelection } from './ReserveSelection'
 import { CardPeek } from './CardPeek'
 import { DevPanel } from './DevPanel'
+import { SettingsModal } from './SettingsModal'
 import './GameBoard.css'
 
 export function GameBoard() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [showModal, setShowModal] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const appSettings = useAppSettings()
 
   if (state.phase === 'reserve-selection') {
     return <ReserveSelection pool={state.selectionPool} dispatch={dispatch} />
@@ -23,10 +27,25 @@ export function GameBoard() {
         <button className="game-board__start" onClick={() => setShowModal(true)}>
           New Game
         </button>
+        <button className="game-board__settings-btn" onClick={() => setShowSettings(true)}>
+          ⚙ Settings
+        </button>
         {showModal && (
           <NewGameModal
-            onStart={(settings) => { dispatch({ type: 'NEW_GAME', settings }); setShowModal(false) }}
+            onStart={(settings) => {
+              dispatch({ type: 'NEW_GAME', settings: { ...settings, cardBack: appSettings.settings.cardBack } })
+              setShowModal(false)
+            }}
             onCancel={() => setShowModal(false)}
+          />
+        )}
+        {showSettings && (
+          <SettingsModal
+            settings={appSettings.settings}
+            onUpdateColors={appSettings.updateColors}
+            onUpdateCardBack={appSettings.updateCardBack}
+            onResetColors={appSettings.resetColors}
+            onClose={() => setShowSettings(false)}
           />
         )}
         {import.meta.env.DEV && <DevPanel dispatch={dispatch} />}
@@ -72,7 +91,23 @@ export function GameBoard() {
         {state.message && !gameOver && !endTurnBlocked && !pendingAbility && (
           <p className="game-board__message">{state.message}</p>
         )}
+        <button
+          className="game-board__settings-btn"
+          style={{ marginLeft: 'auto' }}
+          onClick={() => setShowSettings(true)}
+        >
+          ⚙ Settings
+        </button>
       </div>
+      {showSettings && (
+        <SettingsModal
+          settings={appSettings.settings}
+          onUpdateColors={appSettings.updateColors}
+          onUpdateCardBack={appSettings.updateCardBack}
+          onResetColors={appSettings.resetColors}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
       {import.meta.env.DEV && <DevPanel dispatch={dispatch} />}
       {pendingAbility?.front.suit === 1 && state.powerDeck.length > 0 && (
         <CardPeek

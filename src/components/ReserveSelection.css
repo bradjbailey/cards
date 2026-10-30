@@ -14,8 +14,8 @@
   align-items: center;
   gap: 20px;
   padding: 48px 56px;
-  background: #13131f;
-  border: 2px solid #444;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
   border-radius: 16px;
   box-shadow: 0 8px 48px rgba(0, 0, 0, 0.7);
   max-width: 680px;
@@ -24,7 +24,7 @@
 
 .reserve-selection__title {
   font-size: 1.8rem;
-  color: #e8d87a;
+  color: var(--color-primary);
   letter-spacing: 0.05em;
   text-shadow: 0 2px 12px rgba(232, 216, 122, 0.35);
 }
@@ -38,7 +38,7 @@
 }
 
 .reserve-selection__instruction strong {
-  color: #e8d87a;
+  color: var(--color-primary);
 }
 
 .reserve-selection__count {

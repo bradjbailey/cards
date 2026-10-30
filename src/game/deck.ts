@@ -1,17 +1,15 @@
-import type { CardData } from '../components/Card'
+import type { CardData, BackOfCard } from '../components/Card'
 
-const defaultBack = { color: 'Blue' as const, version: 1 as const }
-
-export function createFullDeck(): CardData[] {
+export function createFullDeck(back: BackOfCard = { color: 'Blue', version: 1 }): CardData[] {
   const cards: CardData[] = []
   for (let suit = 0; suit < 4; suit++) {
     for (let rank = 1; rank <= 13; rank++) {
-      cards.push({ faceUp: false, front: { rank, suit }, back: defaultBack })
+      cards.push({ faceUp: false, front: { rank, suit }, back })
     }
   }
   // Two jokers: suit 0 → black, suit 2 → red
-  cards.push({ faceUp: false, front: { rank: 0, suit: 0, joker: true }, back: defaultBack })
-  cards.push({ faceUp: false, front: { rank: 0, suit: 2, joker: true }, back: defaultBack })
+  cards.push({ faceUp: false, front: { rank: 0, suit: 0, joker: true }, back })
+  cards.push({ faceUp: false, front: { rank: 0, suit: 2, joker: true }, back })
   return cards
 }
 
