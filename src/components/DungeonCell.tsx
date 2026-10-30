@@ -1,9 +1,8 @@
-import type { Dispatch } from 'react'
+import type { Dispatch, CSSProperties } from 'react'
 import Card from './Card'
 import {
   isCoveredBy,
   monsterLevel,
-  monsterName,
   placementError,
   powerSum,
   suitName,
@@ -50,7 +49,16 @@ export function DungeonCell({ row, col, state, dispatch }: DungeonCellProps) {
     )
   }
 
-  // Face-up (active) cell: show monster + attacks + power info.
+  // Attack card fan: rotate and spread cards visually over the monster.
+  function attackCardStyle(i: number, total: number): CSSProperties {
+    const center = (total - 1) / 2
+    const offset = i - center
+    const txPx = offset * 22   // horizontal spread in screen space
+    const rotDeg = offset * 9  // fan rotation
+    return { transform: `translateX(${txPx}px) rotate(${rotDeg}deg)`, zIndex: i + 1 }
+  }
+
+  // Face-up (active) cell: show monster + overlapping attack cards.
   return (
     <div className="dungeon-cell">
       <Card
@@ -60,17 +68,14 @@ export function DungeonCell({ row, col, state, dispatch }: DungeonCellProps) {
         dimmed={isLegal === false ? true : undefined}
       />
 
-      <div className="dungeon-cell__badge">
-        <div className="dungeon-cell__badge-name">{monsterName(cell)}</div>
-        <div className="dungeon-cell__badge-detail">
-          Level {monsterLevel(cell)} · needs {suitName(cell.front.suit)}
-        </div>
-      </div>
-
       {attack.length > 0 && (
         <div className="dungeon-cell__attacks">
           {attack.map((card, slotIndex) => (
-            <div key={slotIndex} className={`dungeon-cell__attack-card${slotIndex < locked ? ' dungeon-cell__attack-card--locked' : ''}`}>
+            <div
+              key={slotIndex}
+              className={`dungeon-cell__attack-wrapper${slotIndex < locked ? ' dungeon-cell__attack-wrapper--locked' : ''}`}
+              style={attackCardStyle(slotIndex, attack.length)}
+            >
               <Card
                 {...card}
                 highlight={pendingSpades ? true : undefined}
@@ -80,11 +85,10 @@ export function DungeonCell({ row, col, state, dispatch }: DungeonCellProps) {
               />
             </div>
           ))}
-
           <div className="dungeon-cell__power-info">
             {attack.length < POWER_SLOTS
-              ? `Need ${POWER_SLOTS - attack.length} more power`
-              : `${suitName(cell.front.suit)} trigger (${powerSum(attack, state.settings)}/${monsterLevel(cell)})`}
+              ? `${powerSum(attack, state.settings)}/${monsterLevel(cell)} · need ${suitName(cell.front.suit)}`
+              : `${suitName(cell.front.suit)} trigger · ${powerSum(attack, state.settings)}/${monsterLevel(cell)}`}
           </div>
         </div>
       )}

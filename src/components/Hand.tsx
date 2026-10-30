@@ -14,7 +14,7 @@ interface HandProps {
 
 export function Hand({ cards, center, offset, selectedHandIndex = null, dispatch, onCardClick }: HandProps) {
   return (
-    <div style={{ position: 'relative', width: '100%', height: '220px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '160px' }}>
       {cards.map((card, index) => {
         const isSelected = index === selectedHandIndex
         const style = {

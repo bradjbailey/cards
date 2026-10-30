@@ -69,6 +69,25 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
         <DiscardOverlay title="Discard Pile" cards={damagePile} onBack={() => setShowDiscard(false)} />
       )}
 
+      <div
+        className="player-area__section player-area__damage-section"
+        onClick={() => setShowCleared(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setShowCleared(true)}
+        title="Click to view cleared pile"
+      >
+        <div className="player-area__label">Cleared ({clearPile.length})</div>
+        <Pile
+          cards={clearPile.map(c => ({ ...c, faceUp: false }))}
+          appearance={{ offset: 2, direction: 'up', maxVisible: 4, showCounter: true }}
+        />
+      </div>
+
+      {showCleared && (
+        <DiscardOverlay title="Cleared Pile" cards={clearPile} onBack={() => setShowCleared(false)} />
+      )}
+
       {reserve.length > 0 && (
         <div className="player-area__section">
           <div className="player-area__label">Reserve</div>
@@ -101,24 +120,6 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
         </div>
       )}
 
-      <div
-        className="player-area__section player-area__damage-section"
-        onClick={() => setShowCleared(true)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setShowCleared(true)}
-        title="Click to view cleared pile"
-      >
-        <div className="player-area__label">Cleared ({clearPile.length})</div>
-        <Pile
-          cards={clearPile.map(c => ({ ...c, faceUp: false }))}
-          appearance={{ offset: 2, direction: 'up', maxVisible: 4, showCounter: true }}
-        />
-      </div>
-
-      {showCleared && (
-        <DiscardOverlay title="Cleared Pile" cards={clearPile} onBack={() => setShowCleared(false)} />
-      )}
     </div>
   )
 }

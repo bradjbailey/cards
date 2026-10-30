@@ -8,13 +8,19 @@ import { ReserveSelection } from './ReserveSelection'
 import { CardPeek } from './CardPeek'
 import { DevPanel } from './DevPanel'
 import { SettingsModal } from './SettingsModal'
+import { RulesOverlay } from './RulesOverlay'
 import './GameBoard.css'
 
 export function GameBoard() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [showModal, setShowModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showRules, setShowRules] = useState(false)
   const appSettings = useAppSettings()
+
+  if (showRules) {
+    return <RulesOverlay onBack={() => setShowRules(false)} />
+  }
 
   if (state.phase === 'reserve-selection') {
     return <ReserveSelection pool={state.selectionPool} dispatch={dispatch} />
@@ -27,9 +33,14 @@ export function GameBoard() {
         <button className="game-board__start" onClick={() => setShowModal(true)}>
           New Game
         </button>
-        <button className="game-board__settings-btn" onClick={() => setShowSettings(true)}>
-          ⚙ Settings
-        </button>
+        <div className="game-board__aux-btns">
+          <button className="game-board__settings-btn" onClick={() => setShowSettings(true)}>
+            ⚙ Settings
+          </button>
+          <button className="game-board__settings-btn" onClick={() => setShowRules(true)}>
+            ? Rules
+          </button>
+        </div>
         {showModal && (
           <NewGameModal
             onStart={(settings) => {
@@ -70,34 +81,43 @@ export function GameBoard() {
           End Turn
           <small>Discard &amp; Draw</small>
         </button>
-        {pendingAbility && (
-          <>
-            <p className="game-board__message game-board__message--ability">
-              {state.message}
+        <div className="game-board__controls-center">
+          {pendingAbility && (
+            <>
+              <p className="game-board__message game-board__message--ability">
+                {state.message}
+              </p>
+              <button
+                className="game-board__cancel-ability"
+                onClick={() => dispatch({ type: 'CANCEL_KING_ABILITY' })}
+              >
+                Cancel
+              </button>
+            </>
+          )}
+          {endTurnBlocked && !pendingAbility && (
+            <p className="game-board__message game-board__message--blocked">
+              Recall a power card — locking these would make that monster unbeatable.
             </p>
-            <button
-              className="game-board__cancel-ability"
-              onClick={() => dispatch({ type: 'CANCEL_KING_ABILITY' })}
-            >
-              Cancel
-            </button>
-          </>
-        )}
-        {endTurnBlocked && !pendingAbility && (
-          <p className="game-board__message game-board__message--blocked">
-            Recall a power card — locking these would make that monster unbeatable.
-          </p>
-        )}
-        {state.message && !gameOver && !endTurnBlocked && !pendingAbility && (
-          <p className="game-board__message">{state.message}</p>
-        )}
-        <button
-          className="game-board__settings-btn"
-          style={{ marginLeft: 'auto' }}
-          onClick={() => setShowSettings(true)}
-        >
-          ⚙ Settings
-        </button>
+          )}
+          {state.message && !gameOver && !endTurnBlocked && !pendingAbility && (
+            <p className="game-board__message">{state.message}</p>
+          )}
+        </div>
+        <div className="game-board__aux-btns">
+          <button
+            className="game-board__settings-btn"
+            onClick={() => setShowSettings(true)}
+          >
+            ⚙ Settings
+          </button>
+          <button
+            className="game-board__settings-btn"
+            onClick={() => setShowRules(true)}
+          >
+            ? Rules
+          </button>
+        </div>
       </div>
       {showSettings && (
         <SettingsModal
