@@ -1,5 +1,6 @@
 import type { CardData } from '../components/Card'
 import { createFullDeck, shuffle, separateDecks } from './deck'
+import { getLayout, DEFAULT_LAYOUT, type LayoutKey, type ExtraCover } from './layouts'
 
 /**
  * Clear the Dungeon — core game logic.
@@ -29,12 +30,14 @@ export interface GameSettings {
   boomersAce: boolean
   powerReserve: boolean
   kingAbilities: boolean
+  layout: LayoutKey
 }
 
 export const defaultSettings: GameSettings = {
   boomersAce: false,
   powerReserve: false,
   kingAbilities: false,
+  layout: DEFAULT_LAYOUT,
 }
 
 /** Cards drawn into the hand each turn. */
@@ -49,22 +52,26 @@ export const ATTACK_SIZE = POWER_SLOTS + 1
 export interface GameState {
   phase: GamePhase
   /**
-   * Four columns of monster cards. The LAST element of each column is the
-   * currently revealed (face-up) monster; earlier elements are face-down and
-   * revealed as the column is cleared. An empty column is a fully cleared one.
+   * 2D grid [row][col]. Row 0 = top (deepest); last row = front/visible.
+   * null = cell defeated. faceUp: true = revealed and attackable.
    */
-  dungeonColumns: CardData[][]
+  dungeonGrid: (CardData | null)[][]
   /**
-   * In-progress attack cards for each column's active monster. Slots 0..1 are
-   * power cards; slot 2 is the trigger (but a completed trigger defeats the
-   * monster immediately, so an *active* monster never actually holds 3).
+   * For each cell (r, c): the column indices in row r+1 that cover it.
+   * Computed from layout geometry plus any layout-defined extraCovers overrides.
+   * Used by isCoveredBy; does not change during play.
    */
-  attacks: CardData[][]
+  coverableBy: number[][][]
   /**
-   * Per column, how many attack cards are locked from previous turns. Cards at
-   * an index < lockedCount cannot be recalled; cards placed this turn can.
+   * Attack cards per grid cell, parallel to dungeonGrid. null = defeated.
+   * Active cells hold 0-2 power cards (trigger immediately defeats, so never 3).
    */
-  lockedCount: number[]
+  attacks: (CardData[] | null)[][]
+  /**
+   * Locked attack count per cell, parallel to dungeonGrid. null = defeated.
+   * Cards at slotIndex < lockedCount[r][c] cannot be recalled.
+   */
+  lockedCount: (number | null)[][]
   powerDeck: CardData[]
   hand: CardData[]
   /** Index into `hand` of the currently selected card, or null. */
@@ -93,9 +100,10 @@ export interface GameState {
 
 export const initialState: GameState = {
   phase: 'idle',
-  dungeonColumns: [[], [], [], []],
-  attacks: [[], [], [], []],
-  lockedCount: [0, 0, 0, 0],
+  dungeonGrid: [],
+  coverableBy: [],
+  attacks: [],
+  lockedCount: [],
   powerDeck: [],
   hand: [],
   selectedHandIndex: null,
@@ -116,13 +124,13 @@ export type GameAction =
   | { type: 'BACK_TO_MENU' }
   | { type: 'SELECT_HAND'; index: number }
   | { type: 'SELECT_RESERVE'; index: number }
-  | { type: 'PLACE_CARD'; columnIndex: number }
-  | { type: 'RECALL_CARD'; columnIndex: number; slotIndex: number }
+  | { type: 'PLACE_CARD'; row: number; col: number }
+  | { type: 'RECALL_CARD'; row: number; col: number; slotIndex: number }
   | { type: 'END_TURN' }
   | { type: 'ACTIVATE_KING'; kingCard: CardData }
   | { type: 'CANCEL_KING_ABILITY' }
   | { type: 'USE_KING_HEARTS'; handIndex: number }
-  | { type: 'USE_KING_SPADES'; columnIndex: number; slotIndex: number }
+  | { type: 'USE_KING_SPADES'; row: number; col: number; slotIndex: number }
   | { type: 'USE_KING_DIAMONDS'; choice: 'take' | 'leave' }
   | { type: 'CONFIRM_RESERVE'; reserveIndices: [number, number] }
   | { type: 'DEBUG_SET_STATE'; state: GameState }
@@ -168,36 +176,88 @@ export function powerSum(attack: CardData[], settings: GameSettings = defaultSet
   return attack.slice(0, POWER_SLOTS).reduce((sum, c) => sum + cardPower(c, settings), 0)
 }
 
-/** The revealed monster for a column, or null if the column is cleared. */
-export function activeMonster(column: CardData[]): CardData | null {
-  return column.length > 0 ? column[column.length - 1] : null
+/**
+ * Returns true if the cell at (r, c) is covered by at least one non-null card
+ * in row r+1 (the row directly below). Uses the half-integer position formula:
+ * a card at column c in a row of width w sits at position c − (w−1)/2, and two
+ * cards overlap when their positions differ by less than 1.
+ */
+export function isCovered(grid: (CardData | null)[][], r: number, c: number): boolean {
+  const belowR = r + 1
+  if (belowR >= grid.length) return false
+  const thisPos = c - (grid[r].length - 1) / 2
+  const belowRow = grid[belowR]
+  return belowRow.some((cell, bc) => {
+    if (cell === null) return false
+    const belowPos = bc - (belowRow.length - 1) / 2
+    return Math.abs(thisPos - belowPos) < 1
+  })
 }
 
 /**
- * Whether placing `card` on `columnIndex` is a legal move right now. Returns a
- * reason string when illegal (suitable for display), or null when legal.
+ * Builds the `coverableBy` map: for each cell (r, c), the list of column indices
+ * in row r+1 that cover it, combining geometric overlap with any layout extraCovers.
+ */
+function buildCoverableBy(rowWidths: number[], extraCovers: ExtraCover[] = []): number[][][] {
+  const result: number[][][] = rowWidths.map((w, r) => {
+    const belowW = r + 1 < rowWidths.length ? rowWidths[r + 1] : 0
+    return Array.from({ length: w }, (_, c) => {
+      if (belowW === 0) return []
+      const thisPos = c - (w - 1) / 2
+      const cols: number[] = []
+      for (let bc = 0; bc < belowW; bc++) {
+        if (Math.abs(thisPos - (bc - (belowW - 1) / 2)) < 1) cols.push(bc)
+      }
+      return cols
+    })
+  })
+  for (const { coverRow, coverCol, coversInRowAbove } of extraCovers) {
+    const rAbove = coverRow - 1
+    for (const bc of coversInRowAbove) {
+      if (result[rAbove]?.[bc] && !result[rAbove][bc].includes(coverCol)) {
+        result[rAbove][bc].push(coverCol)
+      }
+    }
+  }
+  return result
+}
+
+/**
+ * Like isCovered, but uses the pre-computed coverableBy map (which includes
+ * layout-specific explicit coverage overrides) instead of raw position math.
+ */
+export function isCoveredBy(
+  coverableBy: number[][][],
+  grid: (CardData | null)[][],
+  r: number,
+  c: number,
+): boolean {
+  return coverableBy[r]?.[c]?.some(bc => grid[r + 1]?.[bc] !== null) ?? false
+}
+
+/**
+ * Whether placing `card` on cell (row, col) is a legal move right now. Returns
+ * a reason string when illegal (suitable for display), or null when legal.
  */
 export function placementError(
   state: GameState,
   card: CardData,
-  columnIndex: number,
+  row: number,
+  col: number,
 ): string | null {
-  const column = state.dungeonColumns[columnIndex]
-  const monster = column ? activeMonster(column) : null
-  if (!monster) return 'No monster to attack there.'
+  const cell = state.dungeonGrid[row]?.[col]
+  if (!cell?.faceUp) return 'No monster to attack there.'
 
-  const attack = state.attacks[columnIndex]
-  // Still filling power slots: any card is a legal power card.
+  const attack = state.attacks[row]?.[col] ?? []
   if (attack.length < POWER_SLOTS) return null
 
-  // Trigger slot: power must be high enough and the suit must match.
-  const level = monsterLevel(monster)
+  const level = monsterLevel(cell)
   const sum = powerSum(attack, state.settings)
   if (sum < level) {
     return `Power is ${sum}; needs ${level}+. Recall a power card and use a higher one.`
   }
-  if (!isValidTrigger(card, monster)) {
-    return `Trigger must be ${suitName(monster.front.suit)} (or a Joker).`
+  if (!isValidTrigger(card, cell)) {
+    return `Trigger must be ${suitName(cell.front.suit)} (or a Joker).`
   }
   return null
 }
@@ -207,23 +267,24 @@ export function monsterName(monster: CardData): string {
   return `${rank} of ${suitName(monster.front.suit)}`
 }
 
-export function isActiveTarget(state: GameState, columnIndex: number): boolean {
-  return activeMonster(state.dungeonColumns[columnIndex]) !== null
+export function isActiveTarget(state: GameState, row: number, col: number): boolean {
+  return state.dungeonGrid[row]?.[col]?.faceUp === true
 }
 
 /**
- * Returns true if any column has POWER_SLOTS cards placed with insufficient
+ * Returns true if any cell has POWER_SLOTS cards placed with insufficient
  * power to ever trigger — ending the turn would lock those cards permanently,
- * making the column unwinnable. Used to disable the End Turn button.
+ * making the cell unwinnable. Used to disable the End Turn button.
  */
 export function hasInsufficientAttack(state: GameState): boolean {
-  return state.dungeonColumns.some((column, i) => {
-    const monster = activeMonster(column)
-    if (!monster) return false
-    const attack = state.attacks[i]
-    if (attack.length < POWER_SLOTS) return false
-    return powerSum(attack, state.settings) < monsterLevel(monster)
-  })
+  return state.dungeonGrid.some((gridRow, r) =>
+    gridRow.some((cell, c) => {
+      if (!cell?.faceUp) return false
+      const attack = state.attacks[r]?.[c]
+      if (!attack || attack.length < POWER_SLOTS) return false
+      return powerSum(attack, state.settings) < monsterLevel(cell)
+    })
+  )
 }
 
 // --- Internal immutable array utilities -------------------------------------
@@ -242,17 +303,28 @@ function faceUp(card: CardData): CardData {
   return card.faceUp ? card : { ...card, faceUp: true }
 }
 
-function dealDungeon(monsters: CardData[]): CardData[][] {
-  // 4 columns x 3 cards; the last card in each column is revealed face up.
-  const columns: CardData[][] = [[], [], [], []]
-  for (let col = 0; col < 4; col++) {
-    for (let row = 0; row < 3; row++) {
-      columns[col].push({ ...monsters[col * 3 + row], faceUp: false })
+function replaceCell<T>(grid: T[][], r: number, c: number, value: T): T[][] {
+  return grid.map((row, ri) => ri === r ? replaceAt(row, c, value) : row)
+}
+
+function dealDungeon(
+  monsters: CardData[],
+  rowWidths: number[],
+  extraCovers: ExtraCover[] = [],
+): { grid: (CardData | null)[][]; coverableBy: number[][][] } {
+  let idx = 0
+  const grid: (CardData | null)[][] = rowWidths.map(w =>
+    Array.from({ length: w }, (): CardData => ({ ...monsters[idx++], faceUp: false }))
+  )
+  const coverableBy = buildCoverableBy(rowWidths, extraCovers)
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      if (!isCoveredBy(coverableBy, grid, r, c)) {
+        grid[r][c] = { ...(grid[r][c] as CardData), faceUp: true }
+      }
     }
-    const last = columns[col].length - 1
-    columns[col][last] = { ...columns[col][last], faceUp: true }
   }
-  return columns
+  return { grid, coverableBy }
 }
 
 // --- Reducer ----------------------------------------------------------------
@@ -267,18 +339,26 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'NEW_GAME': {
       const settings = action.settings ?? defaultSettings
+      const layout = getLayout(settings.layout)
       const { monsters, power } = separateDecks(createFullDeck())
-      const dungeonColumns = dealDungeon(shuffle(monsters))
+      const { grid: dungeonGrid, coverableBy } = dealDungeon(shuffle(monsters), layout.rows, layout.extraCovers)
+      const emptyAttacks: (CardData[] | null)[][] = layout.rows.map(w =>
+        Array.from({ length: w }, () => [] as CardData[])
+      )
+      const emptyLocked: (number | null)[][] = layout.rows.map(w =>
+        Array.from({ length: w }, () => 0)
+      )
       const shuffledPower = shuffle(power)
-      const SELECTION_SIZE = HAND_SIZE + 2 // 5 cards for reserve selection
+      const SELECTION_SIZE = HAND_SIZE + 2
       if (settings.powerReserve) {
         const selectionPool = shuffledPower.slice(0, SELECTION_SIZE).map(faceUp)
         const powerDeck = shuffledPower.slice(SELECTION_SIZE)
         return {
           phase: 'reserve-selection',
-          dungeonColumns,
-          attacks: [[], [], [], []],
-          lockedCount: [0, 0, 0, 0],
+          dungeonGrid,
+          coverableBy,
+          attacks: emptyAttacks,
+          lockedCount: emptyLocked,
           powerDeck,
           hand: [],
           selectedHandIndex: null,
@@ -299,9 +379,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const powerDeck = shuffledPower.slice(HAND_SIZE)
       return {
         phase: 'playing',
-        dungeonColumns,
-        attacks: [[], [], [], []],
-        lockedCount: [0, 0, 0, 0],
+        dungeonGrid,
+        coverableBy,
+        attacks: emptyAttacks,
+        lockedCount: emptyLocked,
         powerDeck,
         hand,
         selectedHandIndex: null,
@@ -340,12 +421,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return { ...state, message: 'Select a card from your hand first.' }
       }
 
-      const { columnIndex } = action
-      const column = state.dungeonColumns[columnIndex]
-      const monster = column ? activeMonster(column) : null
-      if (!monster) return { ...state, message: 'No monster to attack there.' }
+      const { row, col } = action
+      const cellMonster = state.dungeonGrid[row]?.[col]
+      if (!cellMonster?.faceUp) return { ...state, message: 'No monster to attack there.' }
 
-      // Determine card source: hand or reserve.
       let card: CardData
       let handAfter: CardData[]
       let reserveAfter: CardData[]
@@ -359,15 +438,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         reserveAfter = removeAt(state.reserve, state.selectedReserveIndex!)
       }
 
-      const attack = state.attacks[columnIndex]
-      const error = placementError(state, card, columnIndex)
+      const attack = state.attacks[row]?.[col] ?? []
+      const error = placementError(state, card, row, col)
       if (error) return { ...state, message: error }
 
       // Power slot: append and keep playing.
       if (attack.length < POWER_SLOTS) {
         return {
           ...state,
-          attacks: replaceAt(state.attacks, columnIndex, [...attack, card]),
+          attacks: replaceCell(state.attacks, row, col, [...attack, card]),
           hand: handAfter,
           reserve: reserveAfter,
           selectedHandIndex: null,
@@ -376,10 +455,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Trigger slot: the monster is defeated. Move it and its attack cards to
-      // the clear pile, reveal the next monster, and check for a win.
-      // Boomer-Ace: a non-Joker Ace used as trigger returns to hand instead.
-      // King abilities: a defeated King goes to inventory rather than clearPile.
+      // Trigger slot: monster defeated.
+      const monster = cellMonster
       const aceReturns = state.settings.boomersAce && !card.front.joker && card.front.rank === 1
       const kingToInventory = state.settings.kingAbilities && monster.front.rank === 13
       const triggerCards = aceReturns ? [] : [card]
@@ -387,22 +464,31 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const defeatedCards = [...attack, ...triggerCards, ...monsterCards]
       const handAfterTrigger = aceReturns ? [...handAfter, card] : handAfter
       const inventoryAfter = kingToInventory ? [...state.inventory, faceUp(monster)] : state.inventory
-      const columnAfter = column.slice(0, -1)
-      if (columnAfter.length > 0) {
-        const top = columnAfter.length - 1
-        columnAfter[top] = { ...columnAfter[top], faceUp: true }
+
+      // Null out the defeated cell.
+      let newGrid = replaceCell(state.dungeonGrid, row, col, null)
+      let newAttacks = replaceCell(state.attacks, row, col, null)
+      const newLocked = replaceCell(state.lockedCount, row, col, null)
+
+      // Reveal any cells in the row above that are now uncovered.
+      if (row > 0) {
+        for (let c = 0; c < newGrid[row - 1].length; c++) {
+          const above = newGrid[row - 1][c]
+          if (above !== null && !above.faceUp && !isCoveredBy(state.coverableBy, newGrid, row - 1, c)) {
+            newGrid = replaceCell(newGrid, row - 1, c, { ...above, faceUp: true })
+          }
+        }
       }
-      const dungeonColumns = replaceAt(state.dungeonColumns, columnIndex, columnAfter)
-      const won = dungeonColumns.every((c) => c.length === 0)
-      const updatedAttacks = replaceAt(state.attacks, columnIndex, [])
+
       const clearPile = [...state.clearPile, ...defeatedCards]
+      const won = newGrid.every(r => r.every(c => c === null))
 
       if (won) {
         return {
           ...state,
-          dungeonColumns,
-          attacks: updatedAttacks,
-          lockedCount: replaceAt(state.lockedCount, columnIndex, 0),
+          dungeonGrid: newGrid,
+          attacks: newAttacks,
+          lockedCount: newLocked,
           hand: handAfterTrigger,
           reserve: reserveAfter,
           selectedHandIndex: null,
@@ -416,17 +502,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Auto-draw when the hand is exhausted on the defeating card: lock all
-      // remaining partial attacks (new turn starts) and draw a fresh hand.
+      // Auto-draw when the hand is exhausted on the defeating card.
       if (handAfterTrigger.length === 0) {
-        const lockedCount = updatedAttacks.map((a) => a.length)
+        const lockedCount: (number | null)[][] = newAttacks.map(r =>
+          r.map(cell => cell !== null ? cell.length : null)
+        )
         const hand = state.powerDeck.slice(0, HAND_SIZE).map(faceUp)
         const powerDeck = state.powerDeck.slice(HAND_SIZE)
         if (hand.length === 0) {
           return {
             ...state,
-            dungeonColumns,
-            attacks: updatedAttacks,
+            dungeonGrid: newGrid,
+            attacks: newAttacks,
             lockedCount,
             hand: [],
             reserve: reserveAfter,
@@ -442,8 +529,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
         return {
           ...state,
-          dungeonColumns,
-          attacks: updatedAttacks,
+          dungeonGrid: newGrid,
+          attacks: newAttacks,
           lockedCount,
           hand,
           reserve: reserveAfter,
@@ -461,9 +548,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       return {
         ...state,
-        dungeonColumns,
-        attacks: updatedAttacks,
-        lockedCount: replaceAt(state.lockedCount, columnIndex, 0),
+        dungeonGrid: newGrid,
+        attacks: newAttacks,
+        lockedCount: newLocked,
         hand: handAfterTrigger,
         reserve: reserveAfter,
         selectedHandIndex: null,
@@ -479,20 +566,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RECALL_CARD': {
       if (state.phase !== 'playing') return state
-      const { columnIndex, slotIndex } = action
-      const attack = state.attacks[columnIndex]
+      const { row, col, slotIndex } = action
+      const attack = state.attacks[row]?.[col]
       if (!attack || slotIndex < 0 || slotIndex >= attack.length) return state
-      if (slotIndex < state.lockedCount[columnIndex]) {
+      const locked = state.lockedCount[row]?.[col] ?? 0
+      if (slotIndex < locked) {
         return { ...state, message: 'That card is locked in from a previous turn.' }
       }
       const raw = faceUp(attack[slotIndex])
-      // Clear boost when a card is recalled — the boost applies to a placed card, not the card itself.
       const card: CardData = raw.front.boosted
         ? { ...raw, front: { ...raw.front, boosted: undefined } }
         : raw
       return {
         ...state,
-        attacks: replaceAt(state.attacks, columnIndex, removeAt(attack, slotIndex)),
+        attacks: replaceCell(state.attacks, row, col, removeAt(attack, slotIndex)),
         hand: [...state.hand, card],
         selectedHandIndex: null,
         message: null,
@@ -502,7 +589,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'END_TURN': {
       if (state.phase !== 'playing') return state
 
-      // Discard whatever is left in hand to the damage bar. Reserve is never discarded.
       const damagePile = [...state.damagePile, ...state.hand.map(faceUp)]
       if (damagePile.length >= MAX_DAMAGE) {
         return {
@@ -516,16 +602,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // Partial attacks become permanent at the turn boundary.
-      const lockedCount = state.attacks.map((a) => a.length)
+      const lockedCount: (number | null)[][] = state.attacks.map(r =>
+        r.map(cell => cell !== null ? cell.length : null)
+      )
 
-      // Draw the next hand (up to HAND_SIZE; may be a short final hand).
       const hand = state.powerDeck.slice(0, HAND_SIZE).map(faceUp)
       const powerDeck = state.powerDeck.slice(HAND_SIZE)
 
       if (hand.length === 0) {
-        // No cards left to draw and monsters remain (a win would have ended the
-        // game already), so the dungeon can never be cleared.
         return {
           ...state,
           hand: [],
@@ -555,8 +639,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== 'playing') return state
       const { kingCard } = action
 
-      // Re-clicking a king that is already pending cancels the ability.
-      // (K♦, K♥, K♠ all stay in inventory while their ability is pending.)
       if (state.pendingKingAbility === kingCard) {
         return { ...state, pendingKingAbility: null, message: null }
       }
@@ -564,7 +646,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const remainingInventory = state.inventory.filter(k => k !== kingCard)
       const suit = kingCard.front.suit
 
-      // K♣ (Clubs, 0): immediately draw the top card of the power deck into hand.
       if (suit === 0) {
         if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to draw.' }
         return {
@@ -579,7 +660,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // K♦ (Diamonds, 1): peek at the bottom card; player chooses take or leave.
       if (suit === 1) {
         if (state.powerDeck.length === 0) return { ...state, message: 'No cards left to peek.' }
         return {
@@ -591,7 +671,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // K♥ (Hearts, 2) and K♠ (Spades, 3): set pending and wait for target selection.
       return {
         ...state,
         pendingKingAbility: kingCard,
@@ -643,15 +722,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'USE_KING_SPADES': {
       if (state.phase !== 'playing' || !state.pendingKingAbility) return state
-      const { columnIndex, slotIndex } = action
-      const attack = state.attacks[columnIndex]
+      const { row, col, slotIndex } = action
+      const attack = state.attacks[row]?.[col]
       if (!attack || slotIndex < 0 || slotIndex >= attack.length) return state
       const target = attack[slotIndex]
       const boosted: CardData = { ...target, front: { ...target.front, boosted: true } }
       const kingCard = state.pendingKingAbility
       return {
         ...state,
-        attacks: replaceAt(state.attacks, columnIndex, replaceAt(attack, slotIndex, boosted)),
+        attacks: replaceCell(state.attacks, row, col, replaceAt(attack, slotIndex, boosted)),
         inventory: state.inventory.filter(k => k !== kingCard),
         pendingKingAbility: null,
         message: null,

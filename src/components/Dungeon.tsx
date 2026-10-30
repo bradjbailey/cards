@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react'
-import { DungeonColumn } from './DungeonColumn'
+import { DungeonCell } from './DungeonCell'
 import type { GameAction, GameState } from '../game/state'
 import './Dungeon.css'
 
@@ -11,8 +11,12 @@ interface DungeonProps {
 export function Dungeon({ state, dispatch }: DungeonProps) {
   return (
     <div className="dungeon">
-      {state.dungeonColumns.map((_, i) => (
-        <DungeonColumn key={i} columnIndex={i} state={state} dispatch={dispatch} />
+      {state.dungeonGrid.map((row, r) => (
+        <div key={r} className="dungeon-row">
+          {row.map((_cell, c) => (
+            <DungeonCell key={c} row={r} col={c} state={state} dispatch={dispatch} />
+          ))}
+        </div>
       ))}
     </div>
   )

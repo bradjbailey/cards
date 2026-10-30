@@ -112,6 +112,84 @@
   background: #e8d87a;
 }
 
+/* ── Layout picker ─────────────────────────────────────────── */
+
+.new-game-modal__layout-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.new-game-modal__section-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6868a0;
+  padding: 0 4px;
+}
+
+.new-game-modal__layout-tiles {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.new-game-modal__layout-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #1a1a2c;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  min-width: 64px;
+}
+
+.new-game-modal__layout-tile:hover {
+  background: #22223a;
+  border-color: #555;
+}
+
+.new-game-modal__layout-tile--selected {
+  border-color: #c8a830;
+  background: #2a2010;
+}
+
+.new-game-modal__layout-bars {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 3px;
+  height: 40px;
+}
+
+.new-game-modal__layout-bar {
+  width: 7px;
+  border-radius: 2px 2px 0 0;
+  background: #44446a;
+  transition: background 0.12s;
+}
+
+.new-game-modal__layout-tile--selected .new-game-modal__layout-bar {
+  background: #c8a830;
+}
+
+.new-game-modal__layout-name {
+  font-size: 0.7rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+.new-game-modal__layout-tile--selected .new-game-modal__layout-name {
+  color: #e8d87a;
+}
+
 /* ── Action buttons ────────────────────────────────────────── */
 
 .new-game-modal__actions {
@@ -152,4 +230,32 @@
 .new-game-modal__btn--start:hover {
   background: #3a2e14;
   border-color: #e8d050;
+}
+
+/* ── Layout dot-grid preview (replaces bar chart) ──────────── */
+
+.new-game-modal__layout-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 52px;
+  justify-content: flex-end;
+}
+
+.new-game-modal__layout-preview-row {
+  display: flex;
+  gap: 2px;
+}
+
+.new-game-modal__layout-preview-cell {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: #44446a;
+  transition: background 0.12s;
+}
+
+.new-game-modal__layout-tile--selected .new-game-modal__layout-preview-cell {
+  background: #c8a830;
 }

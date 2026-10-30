@@ -25,23 +25,27 @@ const FILLER_DECK: CardData[] = [
  * - Jack of Clubs (level 11) has two power cards totalling 12 locked on it
  * - Ace of Clubs is first in hand — with boomersAce it counts as 11, making it
  *   a valid trigger that returns to hand after killing the Jack
+ *
+ * Grid: single row of 4 cells. J♣ is at col 0 with attacks; others active.
  */
 export function boomersAceScenario(): GameState {
   return {
     ...initialState,
     phase: 'playing',
-    settings: { boomersAce: true, powerReserve: false, kingAbilities: false },
-    dungeonColumns: [
-      [monster(11, 0)],                        // Jack of Clubs — active
-      [monster(12, 1), monster(11, 1)],        // Jack of Diamonds behind a Queen
-      [monster(11, 2)],                        // Jack of Hearts
-      [monster(11, 3)],                        // Jack of Spades
-    ],
-    attacks: [
-      [played(6, 1), played(6, 2)],            // 6♦ + 6♥ = 12 ≥ 11 ✓ — trigger-ready
-      [], [], [],
-    ],
-    lockedCount: [2, 0, 0, 0],                // both power cards locked from last turn
+    settings: { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard' as const },
+    dungeonGrid: [[
+      monster(11, 0),   // Jack of Clubs — active, attack-ready
+      monster(11, 1),   // Jack of Diamonds
+      monster(11, 2),   // Jack of Hearts
+      monster(11, 3),   // Jack of Spades
+    ]],
+    attacks: [[
+      [played(6, 1), played(6, 2)],  // 6♦ + 6♥ = 12 ≥ 11 ✓ — trigger-ready
+      [],
+      [],
+      [],
+    ]],
+    lockedCount: [[2, 0, 0, 0]],  // both power cards locked from last turn
     hand: [played(1, 0), played(7, 2), played(5, 3)],  // A♣ at index 0 is the trigger
     powerDeck: FILLER_DECK,
     message: "Boomer-Ace: play the A♣ onto the Jack of Clubs — it triggers and returns to hand!",
@@ -54,6 +58,8 @@ export function boomersAceScenario(): GameState {
  * - Monsters still on the board so no accidental win
  * - One attack card placed on J♣ for K♠ (double) to act on
  * - Power deck is face-down and full enough to test K♣/K♦
+ *
+ * Grid: single row of 4 cells. J♣ has a partial attack; others active.
  */
 export function kingAbilitiesScenario(): GameState {
   const allKings: CardData[] = [
@@ -65,18 +71,20 @@ export function kingAbilitiesScenario(): GameState {
   return {
     ...initialState,
     phase: 'playing',
-    settings: { boomersAce: false, powerReserve: false, kingAbilities: true },
-    dungeonColumns: [
-      [monster(11, 0)],                        // Jack of Clubs
-      [monster(12, 1)],                        // Queen of Diamonds
-      [monster(11, 2)],                        // Jack of Hearts
-      [monster(11, 3)],                        // Jack of Spades
-    ],
-    attacks: [
-      [played(3, 0)],                          // 3♣ placed — K♠ can double it to 6
-      [], [], [],
-    ],
-    lockedCount: [0, 0, 0, 0],
+    settings: { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard' as const },
+    dungeonGrid: [[
+      monster(11, 0),  // Jack of Clubs
+      monster(12, 1),  // Queen of Diamonds
+      monster(11, 2),  // Jack of Hearts
+      monster(11, 3),  // Jack of Spades
+    ]],
+    attacks: [[
+      [played(3, 0)],  // 3♣ placed — K♠ can double it to 6
+      [],
+      [],
+      [],
+    ]],
+    lockedCount: [[0, 0, 0, 0]],
     hand: [played(5, 1), played(7, 2), played(8, 3)],
     powerDeck: FILLER_DECK,
     inventory: allKings,
