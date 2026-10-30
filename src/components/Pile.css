@@ -22,3 +22,14 @@
   color: white;
   font-size: 0.75rem;
 }
+
+.pile__empty {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: var(--card-radius);
+  border: 2px dashed rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}

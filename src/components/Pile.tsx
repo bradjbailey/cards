@@ -40,20 +40,22 @@ export function Pile({ cards, appearance }: PileProps) {
   const { offset, direction, maxVisible, showCounter } = { ...defaultAppearance, ...appearance }
   const visibleCards = cards.slice(0, maxVisible)
   const n = visibleCards.length
+  const slots = Math.max(1, n)
 
   const isHorizontal = direction === 'left' || direction === 'right'
   const sizeStyle = isHorizontal
     ? {
-        width: `calc(var(--card-width) + ${(n - 1) * offset}px + 16px)`,
+        width: `calc(var(--card-width) + ${(slots - 1) * offset}px + 16px)`,
         height: `calc(var(--card-height) + 16px)`,
       }
     : {
-        height: `calc(var(--card-height) + ${(n - 1) * offset}px + 16px)`,
+        height: `calc(var(--card-height) + ${(slots - 1) * offset}px + 16px)`,
         width: `calc(var(--card-width) + 16px)`,
       }
 
   return (
     <div className={`pile pile--${direction}`} style={sizeStyle} aria-label={`Pile with ${cards.length} cards`}>
+      {n === 0 && <div className="pile__empty" />}
       {visibleCards.map((card, index) => {
         const offsetStyle = direction === 'left' || direction === 'right'
           ? { transform: `translateX(${index * offset}px)` }
@@ -66,7 +68,7 @@ export function Pile({ cards, appearance }: PileProps) {
         )
       })}
 
-      {showCounter ? <div className="pile__counter">{cards.length}</div> : null}
+      {showCounter && cards.length > 0 ? <div className="pile__counter">{cards.length}</div> : null}
     </div>
   )
 }

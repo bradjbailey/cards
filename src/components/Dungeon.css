@@ -47,7 +47,7 @@
 }
 
 .dungeon-cell--deep {
-  opacity: 0.6;
+  /* reserved for future depth styling */
 }
 
 /* ── Monster info badge ─────────────────────────────────────── */
@@ -62,7 +62,8 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: #d8d0c0;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .dungeon-cell__badge-detail {

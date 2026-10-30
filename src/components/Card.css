@@ -24,7 +24,12 @@
 
 .card--clickable {
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.card--clickable:not(.card--selected):not(.card--dimmed):hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
 }
 
 .card--clickable:focus-visible {

@@ -12,7 +12,7 @@ export function Dungeon({ state, dispatch }: DungeonProps) {
   return (
     <div className="dungeon">
       {state.dungeonGrid.map((row, r) => (
-        <div key={r} className="dungeon-row">
+        <div key={r} className="dungeon-row" style={{ position: 'relative', zIndex: r + 1 }}>
           {row.map((_cell, c) => (
             <DungeonCell key={c} row={r} col={c} state={state} dispatch={dispatch} />
           ))}

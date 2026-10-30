@@ -48,7 +48,8 @@ export function GameBoard() {
           onClick={() => dispatch({ type: 'END_TURN' })}
           disabled={gameOver || endTurnBlocked || !!pendingAbility}
         >
-          End Turn (Discard &amp; Draw)
+          End Turn
+          <small>Discard &amp; Draw</small>
         </button>
         {pendingAbility && (
           <>
