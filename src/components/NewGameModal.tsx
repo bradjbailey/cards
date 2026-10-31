@@ -12,8 +12,8 @@ type BooleanSettingKey = 'boomersAce' | 'powerReserve' | 'kingAbilities'
 
 const SETTINGS_CONFIG: { key: BooleanSettingKey; label: string; desc: string }[] = [
   { key: 'boomersAce',    label: 'Boomer Ace',     desc: 'Aces worth 11; a trigger Ace returns to your hand' },
-  { key: 'powerReserve',  label: 'Power Reserve',  desc: 'Draw 5 on turn 1, set 2 aside as always-available cards' },
-  { key: 'kingAbilities', label: 'King Abilities', desc: 'Defeated Kings grant one-shot powers' },
+  { key: 'powerReserve',  label: 'Power Reserve',  desc: 'Draw 5 on turn 1, set 2 aside as reserve cards' },
+  { key: 'kingAbilities', label: 'King Abilities', desc: 'Defeated Kings grant one-time powers' },
 ]
 
 export function NewGameModal({ onStart, onCancel }: NewGameModalProps) {
