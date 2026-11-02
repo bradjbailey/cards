@@ -26,22 +26,6 @@ import { getLayout, DEFAULT_LAYOUT, type LayoutKey, type ExtraCover } from './la
 
 export type GamePhase = 'idle' | 'reserve-selection' | 'playing' | 'won' | 'lost'
 
-export interface GameSettings {
-  boomersAce: boolean
-  powerReserve: boolean
-  kingAbilities: boolean
-  layout: LayoutKey
-  cardBack: BackOfCard
-}
-
-export const defaultSettings: GameSettings = {
-  boomersAce: false,
-  powerReserve: false,
-  kingAbilities: false,
-  layout: DEFAULT_LAYOUT,
-  cardBack: { color: 'Blue', version: 1 },
-}
-
 /** Cards drawn into the hand each turn. */
 export const HAND_SIZE = 3
 /** Damage bar size that triggers a loss. */
@@ -50,6 +34,26 @@ export const MAX_DAMAGE = 7
 export const POWER_SLOTS = 2
 /** Total cards used to defeat one monster (POWER_SLOTS + 1 trigger). */
 export const ATTACK_SIZE = POWER_SLOTS + 1
+
+export interface GameSettings {
+  boomersAce: boolean
+  powerReserve: boolean
+  kingAbilities: boolean
+  layout: LayoutKey
+  cardBack: BackOfCard
+  difficulty: 'easy' | 'normal' | 'hard' | 'custom'
+  maxDamage: number
+}
+
+export const defaultSettings: GameSettings = {
+  boomersAce: false,
+  powerReserve: false,
+  kingAbilities: false,
+  layout: DEFAULT_LAYOUT,
+  cardBack: { color: 'Blue', version: 1 },
+  difficulty: 'normal',
+  maxDamage: MAX_DAMAGE,
+}
 
 export interface GameState {
   phase: GamePhase
@@ -88,8 +92,8 @@ export interface GameState {
   clearPile: CardData[]
   /** Transient player-facing message (invalid move, defeat, win/loss). */
   message: string | null
-  /** Final score (power cards remaining) once the game is won. */
-  score: number | null
+  /** Score breakdown once the game is won. */
+  score: ScoreBreakdown | null
   /** Active rule variants for this game. */
   settings: GameSettings
   /** Defeated Kings held as one-shot power inventory (King abilities variant). */
@@ -329,6 +333,45 @@ function dealDungeon(
   return { grid, coverableBy }
 }
 
+// --- Score ------------------------------------------------------------------
+
+export interface ScoreBreakdown {
+  base: number
+  hpBonus: number
+  reserveBonus: number
+  subtotal: number
+  rulesMultiplier: number
+  layoutMultiplier: number
+  difficultyMultiplier: number
+  total: number
+}
+
+export function computeScore(state: GameState): ScoreBreakdown {
+  const { powerDeck, damagePile, reserve, settings } = state
+  const layout = getLayout(settings.layout)
+
+  const base = powerDeck.length * 10
+  const hpBonus = (settings.maxDamage - damagePile.length) * 15
+  const reserveBonus = settings.powerReserve ? reserve.length * 5 : 0
+  const subtotal = base + hpBonus + reserveBonus
+
+  // Integer arithmetic avoids float noise (e.g. 0.1 + 0.1 = 0.2000…)
+  const rulesPts = 100 - (settings.boomersAce ? 10 : 0) - (settings.powerReserve ? 10 : 0) - (settings.kingAbilities ? 15 : 0)
+  const rulesMultiplier = rulesPts / 100
+
+  const layoutMultiplier = layout.scoreMultiplier
+
+  const difficultyMultiplier =
+    settings.difficulty === 'easy'   ? 0.5 :
+    settings.difficulty === 'normal' ? 1.0 :
+    settings.difficulty === 'hard'   ? 2.0 :
+    parseFloat((7 / settings.maxDamage).toFixed(2))
+
+  const total = Math.round(subtotal * rulesMultiplier * layoutMultiplier * difficultyMultiplier)
+
+  return { base, hpBonus, reserveBonus, subtotal, rulesMultiplier, layoutMultiplier, difficultyMultiplier, total }
+}
+
 // --- Reducer ----------------------------------------------------------------
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -486,7 +529,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const won = newGrid.every(r => r.every(c => c === null))
 
       if (won) {
-        return {
+        const wonState: GameState = {
           ...state,
           dungeonGrid: newGrid,
           attacks: newAttacks,
@@ -499,9 +542,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           inventory: inventoryAfter,
           pendingKingAbility: null,
           phase: 'won',
-          score: state.powerDeck.length,
-          message: `You cleared the dungeon! Score: ${state.powerDeck.length}.`,
+          score: null,
+          message: null,
         }
+        const breakdown = computeScore(wonState)
+        return { ...wonState, score: breakdown, message: `You cleared the dungeon! Score: ${breakdown.total}.` }
       }
 
       // Auto-draw when the hand is exhausted on the defeating card.
@@ -592,7 +637,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.phase !== 'playing') return state
 
       const damagePile = [...state.damagePile, ...state.hand.map(faceUp)]
-      if (damagePile.length >= MAX_DAMAGE) {
+      if (damagePile.length >= state.settings.maxDamage) {
         return {
           ...state,
           hand: [],

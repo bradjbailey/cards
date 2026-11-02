@@ -188,7 +188,7 @@ describe('NEW_GAME', () => {
   })
 
   it('stores custom settings passed at game start', () => {
-    const custom: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: true, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
+    const custom: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: true, layout: 'standard', cardBack: { color: 'Blue', version: 1 }, difficulty: 'normal', maxDamage: 7 }
     const s = gameReducer(initialState, { type: 'NEW_GAME', settings: custom })
     expect(s.settings).toEqual(custom)
   })
@@ -381,7 +381,9 @@ describe('PLACE_CARD trigger', () => {
     })
     const next = gameReducer(s, { type: 'PLACE_CARD', row: 0, col: 0 })
     expect(next.phase).toBe('won')
-    expect(next.score).toBe(3)
+    expect(next.score).not.toBeNull()
+    expect(next.score!.base).toBe(30)   // 3 cards × 10
+    expect(next.score!.total).toBe(135) // subtotal=135, all multipliers=1.0 (normal/standard/no rules)
     expect(next.message).toMatch(/cleared/i)
   })
 })
@@ -495,7 +497,7 @@ describe('END_TURN', () => {
 
 describe('BACK_TO_MENU', () => {
   it('resets to initialState from any phase', () => {
-    const won = playing({ phase: 'won', score: 10, message: 'You won!' })
+    const won = playing({ phase: 'won', score: null, message: 'You won!' })
     const back = gameReducer(won, { type: 'BACK_TO_MENU' })
     expect(back.phase).toBe('idle')
     expect(back.hand).toHaveLength(0)
@@ -608,7 +610,7 @@ describe('hasInsufficientAttack', () => {
 // --- Power Reserve variant --------------------------------------------------
 
 describe('Power Reserve', () => {
-  const withReserve: GameSettings = { boomersAce: false, powerReserve: true, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
+  const withReserve: GameSettings = { boomersAce: false, powerReserve: true, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 }, difficulty: 'normal', maxDamage: 7 }
 
   it('NEW_GAME with powerReserve enters reserve-selection phase with 5 cards in the pool', () => {
     const s = gameReducer(initialState, { type: 'NEW_GAME', settings: withReserve })
@@ -693,11 +695,11 @@ describe('Power Reserve', () => {
 // --- Boomer-Ace variant -----------------------------------------------------
 
 describe('Boomer-Ace', () => {
-  const boomers: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
+  const boomers: GameSettings = { boomersAce: true, powerReserve: false, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 }, difficulty: 'normal', maxDamage: 7 }
 
   it('scores an Ace as 11 with boomersAce on, 1 without', () => {
     const ace = power(1)
-    expect(cardPower(ace, { boomersAce: false, powerReserve: false, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 } })).toBe(1)
+    expect(cardPower(ace, { boomersAce: false, powerReserve: false, kingAbilities: false, layout: 'standard', cardBack: { color: 'Blue', version: 1 }, difficulty: 'normal', maxDamage: 7 })).toBe(1)
     expect(cardPower(ace, boomers)).toBe(11)
   })
 
@@ -741,7 +743,7 @@ describe('Boomer-Ace', () => {
 // --- King abilities variant -------------------------------------------------
 
 describe('King abilities', () => {
-  const kingsOn: GameSettings = { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard', cardBack: { color: 'Blue', version: 1 } }
+  const kingsOn: GameSettings = { boomersAce: false, powerReserve: false, kingAbilities: true, layout: 'standard', cardBack: { color: 'Blue', version: 1 }, difficulty: 'normal', maxDamage: 7 }
 
   function kingSetup() {
     const king = monster(13, 0)

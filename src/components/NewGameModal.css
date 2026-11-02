@@ -112,6 +112,66 @@
   background: var(--color-primary);
 }
 
+/* ── Difficulty picker ─────────────────────────────────────── */
+
+.new-game-modal__difficulty-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.new-game-modal__difficulty-presets {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.new-game-modal__difficulty-btn {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #1a1a2c;
+  color: #888;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.new-game-modal__difficulty-btn:hover {
+  background: #22223a;
+  border-color: #555;
+  color: #bbb;
+}
+
+.new-game-modal__difficulty-btn--selected {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.new-game-modal__custom-damage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.new-game-modal__custom-damage input {
+  width: 56px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #1a1a2c;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 /* ── Layout picker ─────────────────────────────────────────── */
 
 .new-game-modal__layout-section {

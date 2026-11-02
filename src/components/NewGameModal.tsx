@@ -27,6 +27,11 @@ export function NewGameModal({ onStart, onCancel }: NewGameModalProps) {
     setSettings(s => ({ ...s, layout: key }))
   }
 
+  function setDifficulty(d: GameSettings['difficulty']) {
+    const presetMax: Record<GameSettings['difficulty'], number> = { easy: 9, normal: 7, hard: 5, custom: 7 }
+    setSettings(s => ({ ...s, difficulty: d, maxDamage: presetMax[d] }))
+  }
+
   return (
     <div className="new-game-modal__overlay">
       <div className="new-game-modal__box">
@@ -49,6 +54,33 @@ export function NewGameModal({ onStart, onCancel }: NewGameModalProps) {
               />
             </label>
           ))}
+        </div>
+
+        <div className="new-game-modal__difficulty-section">
+          <div className="new-game-modal__section-label">Difficulty</div>
+          <div className="new-game-modal__difficulty-presets">
+            {(['easy', 'normal', 'hard', 'custom'] as const).map(d => (
+              <button
+                key={d}
+                className={`new-game-modal__difficulty-btn${settings.difficulty === d ? ' new-game-modal__difficulty-btn--selected' : ''}`}
+                onClick={() => setDifficulty(d)}
+              >
+                {d.charAt(0).toUpperCase() + d.slice(1)}
+              </button>
+            ))}
+          </div>
+          {settings.difficulty === 'custom' && (
+            <label className="new-game-modal__custom-damage">
+              <span>Max Damage</span>
+              <input
+                type="number"
+                min={3}
+                max={10}
+                value={settings.maxDamage}
+                onChange={e => setSettings(s => ({ ...s, maxDamage: Math.min(10, Math.max(3, Number(e.target.value))) }))}
+              />
+            </label>
+          )}
         </div>
 
         <div className="new-game-modal__layout-section">

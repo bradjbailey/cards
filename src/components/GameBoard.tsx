@@ -147,9 +147,45 @@ export function GameBoard() {
               {state.phase === 'won' ? 'Victory!' : 'Defeated!'}
             </h2>
             {state.message && <p className="game-board__overlay-message">{state.message}</p>}
-            {state.phase === 'won' && state.score !== null && (
-              <p className="game-board__overlay-score">Score: {state.score}</p>
-            )}
+            {state.phase === 'won' && state.score !== null && (() => {
+              const s = state.score!
+              return (
+                <div className="game-board__score-breakdown">
+                  <div className="game-board__score-row">
+                    <span>Deck bonus</span><span>{s.base}</span>
+                  </div>
+                  <div className="game-board__score-row">
+                    <span>HP bonus</span><span>{s.hpBonus}</span>
+                  </div>
+                  {state.settings.powerReserve && (
+                    <div className="game-board__score-row">
+                      <span>Reserve bonus</span><span>{s.reserveBonus}</span>
+                    </div>
+                  )}
+                  <div className="game-board__score-row game-board__score-row--subtotal">
+                    <span>Subtotal</span><span>{s.subtotal}</span>
+                  </div>
+                  {s.rulesMultiplier !== 1 && (
+                    <div className="game-board__score-row game-board__score-row--multiplier">
+                      <span>Rules</span><span>×{s.rulesMultiplier.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {s.layoutMultiplier !== 1 && (
+                    <div className="game-board__score-row game-board__score-row--multiplier">
+                      <span>Layout</span><span>×{s.layoutMultiplier.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {s.difficultyMultiplier !== 1 && (
+                    <div className="game-board__score-row game-board__score-row--multiplier">
+                      <span>Difficulty</span><span>×{s.difficultyMultiplier.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="game-board__score-row game-board__score-row--total">
+                    <span>Final Score</span><span>{s.total}</span>
+                  </div>
+                </div>
+              )
+            })()}
             <button
               className="game-board__start"
               onClick={() => dispatch({ type: 'BACK_TO_MENU' })}

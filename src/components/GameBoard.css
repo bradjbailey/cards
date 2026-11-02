@@ -169,11 +169,41 @@
   font-size: 1rem;
 }
 
-.game-board__overlay-score {
-  margin: 0;
-  font-size: 1.3rem;
+.game-board__score-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 240px;
+  font-size: 0.9rem;
+}
+
+.game-board__score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  color: #999;
+}
+
+.game-board__score-row--subtotal {
+  color: #bbb;
+  border-top: 1px solid #333;
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.game-board__score-row--multiplier {
+  color: #7a8aaa;
+  font-style: italic;
+}
+
+.game-board__score-row--total {
   color: #81c784;
-  letter-spacing: 0.03em;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-top: 1px solid #444;
+  padding-top: 6px;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
 }
 
 .game-board__aux-btns {

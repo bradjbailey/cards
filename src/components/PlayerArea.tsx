@@ -4,7 +4,7 @@ import { Pile } from './Pile'
 import { Hand } from './Hand'
 import Card from './Card'
 import { DiscardOverlay } from './DiscardOverlay'
-import { MAX_DAMAGE, type GameAction, type GameState } from '../game/state'
+import { type GameAction, type GameState } from '../game/state'
 import './PlayerArea.css'
 
 interface PlayerAreaProps {
@@ -21,11 +21,12 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
   const handClickHandler = pendingSuit === 2
     ? (index: number) => dispatch({ type: 'USE_KING_HEARTS', handIndex: index })
     : undefined
-  const damageRatio = damagePile.length / MAX_DAMAGE
+  const maxDamage = state.settings.maxDamage
+  const damageRatio = damagePile.length / maxDamage
   const damageClass =
-    damageRatio >= 6 / MAX_DAMAGE
+    damageRatio >= 6 / maxDamage
       ? 'player-area__damage--critical'
-      : damageRatio >= 4 / MAX_DAMAGE
+      : damageRatio >= 4 / maxDamage
       ? 'player-area__damage--warning'
       : ''
 
@@ -57,7 +58,7 @@ export function PlayerArea({ state, dispatch }: PlayerAreaProps) {
         title="Click to view discard pile"
       >
         <div className="player-area__label">
-          Damage ({damagePile.length}/{MAX_DAMAGE})
+          Damage ({damagePile.length}/{maxDamage})
         </div>
         <Pile
           cards={damagePile}
